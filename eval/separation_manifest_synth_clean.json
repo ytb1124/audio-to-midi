@@ -1,0 +1,63 @@
+{
+  "_note": "합성 믹스(build_synthetic_mixes.py). 실제 프로덕션 믹스가 아니므로 절대 수치가 아니라 A/B/C 경로 간 상대 비교용으로만 읽을 것.",
+  "bed_gain": 1.0,
+  "strip_bed_drums": true,
+  "songs": [
+    {
+      "name": "drums_sample4_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample4_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample4.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample4_gtstem.wav",
+      "bed_source": "Fast Company - the Eagles"
+    },
+    {
+      "name": "drums_sample5_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample5_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample5.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample5_gtstem.wav",
+      "bed_source": "Mad About You - Toto"
+    },
+    {
+      "name": "drums_sample6_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample6_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample6.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample6_gtstem.wav",
+      "bed_source": "The Hunter - Jennifer Warnes"
+    },
+    {
+      "name": "drums_sample7_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample7_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample7.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample7_gtstem.wav",
+      "bed_source": "Fast Company - the Eagles"
+    },
+    {
+      "name": "drums_sample8_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample8_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample8.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample8_gtstem.wav",
+      "bed_source": "Mad About You - Toto"
+    },
+    {
+      "name": "drums_sample9_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample9_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample9.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample9_gtstem.wav",
+      "bed_source": "The Hunter - Jennifer Warnes"
+    },
+    {
+      "name": "drums_sample11_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample11_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample11.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample11_gtstem.wav",
+      "bed_source": "Fast Company - the Eagles"
+    }
+  ]
+}

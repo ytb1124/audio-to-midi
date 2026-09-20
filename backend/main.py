@@ -1,0 +1,565 @@
+from pathlib import Path
+from uuid import uuid4
+import json
+import os
+import shutil
+import subprocess
+import sys
+import threading
+import glob
+
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.concurrency import run_in_threadpool
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+
+import sys as _sys
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# 프로젝트 전용 venv bin. 백엔드를 시스템 python으로 띄우든 venv python으로
+# 띄우든(2026-07-13 실측: 시스템 Homebrew python + PATH에 venv 없음 → basic-pitch
+# 못 찾는 백엔드 환경 에러 발생) 하위 프로세스는 항상 이 venv를 쓰게 한다.
+_VENV_BIN = BASE_DIR / ".venv-backend" / "bin"
+
+
+def _py():
+    """하위 프로세스용 python. 프로젝트 venv python 우선, 없으면 현재 인터프리터."""
+    venv_py = _VENV_BIN / "python"
+    if venv_py.exists():
+        return str(venv_py)
+    return _sys.executable
+
+
+def _venv_exe(name: str):
+    """콘솔 스크립트 절대경로. 프로젝트 venv bin → sys.executable 형제 → PATH 순."""
+    for cand in (_VENV_BIN / name, Path(_sys.executable).parent / name):
+        if cand.exists():
+            return str(cand)
+    which = shutil.which(name)
+    return which if which else name
+
+
+def _basic_pitch_cmd(*args):
+    """basic-pitch 실행 커맨드. 콘솔 스크립트 우선, 없으면 venv python -m 폴백."""
+    exe = _venv_exe("basic-pitch")
+    if Path(exe).exists() or shutil.which("basic-pitch"):
+        return [exe, *args]
+    return [_py(), "-m", "basic_pitch", *args]
+
+
+UPLOAD_DIR = BASE_DIR / "uploads"
+OUTPUT_DIR = BASE_DIR / "outputs"
+SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "transkun_audio_sustain.py"
+BASS_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "basic_pitch_bass_cleanup.py"
+BASS_AUDIO_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "bass_audio_to_midi.py"
+BASS_HYBRID_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "bass_basicpitch_audio_hybrid.py"
+DEMUCS_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "demucs_separate.py"
+DRUM_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "drum_audio_to_midi.py"
+
+UPLOAD_DIR.mkdir(exist_ok=True)
+OUTPUT_DIR.mkdir(exist_ok=True)
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.mount("/outputs", StaticFiles(directory=str(OUTPUT_DIR)), name="outputs")
+
+JOBS = {}
+
+
+async def save_upload(upload: UploadFile, dest: Path):
+    """업로드 파일을 디스크에 저장. 큰 파일(분리용 오디오는 수십 MB) 쓰기가 이벤트 루프를
+    막아 폴링 응답이 지연/실패(TypeError: Load failed)하지 않도록 스레드풀에서 수행."""
+    def _write():
+        with dest.open("wb") as buffer:
+            shutil.copyfileobj(upload.file, buffer)
+
+    await run_in_threadpool(_write)
+
+
+def update_job(job_id, progress=None, status=None, error=None, result=None):
+    job = JOBS[job_id]
+
+    if progress is not None:
+        job["progress"] = progress
+
+    if status is not None:
+        job["status"] = status
+
+    if error is not None:
+        job["error"] = error
+
+    if result is not None:
+        job["result"] = result
+
+
+def find_midi_in_dir(directory: Path):
+    midi_files = list(directory.glob("*.mid")) + list(directory.glob("*.midi"))
+
+    if not midi_files:
+        return None
+
+    midi_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return midi_files[0]
+
+
+def run_piano_mode(job_id: str, input_audio: Path, job_output_dir: Path):
+    raw_midi = job_output_dir / "piano_transkun_raw.mid"
+    sustain_midi = job_output_dir / "piano_transkun_sustain.mid"
+
+    update_job(job_id, progress=10, status="Uploaded audio.")
+
+    update_job(job_id, progress=25, status="Running Transkun piano transcription...")
+    subprocess.run(
+        [
+            "transkun",
+            str(input_audio),
+            str(raw_midi),
+        ],
+        check=True,
+    )
+
+    update_job(job_id, progress=75, status="Repairing sustain with original audio...")
+    subprocess.run(
+        [
+            _py(),
+            str(SCRIPT_PATH),
+            str(input_audio),
+            str(raw_midi),
+            str(sustain_midi),
+        ],
+        check=True,
+    )
+
+    update_job(
+        job_id,
+        progress=100,
+        status="Done.",
+        result={
+            "midiUrl": f"http://localhost:8000/outputs/{job_id}/{sustain_midi.name}",
+            "midiFileName": sustain_midi.name,
+            "mode": "piano",
+        },
+    )
+
+
+
+def run_bass_mode(job_id: str, input_audio: Path, job_output_dir: Path):
+    update_job(job_id, progress=10, status="Uploaded audio.")
+
+    basic_pitch_dir = job_output_dir / "basic_pitch_bass_raw"
+    basic_pitch_dir.mkdir(exist_ok=True)
+
+    update_job(job_id, progress=25, status="Running Basic Pitch for bass pitch candidates...")
+
+    subprocess.run(
+        _basic_pitch_cmd(str(basic_pitch_dir), str(input_audio)),
+        check=True,
+    )
+
+    raw_midi = find_midi_in_dir(basic_pitch_dir)
+
+    if raw_midi is None:
+        raise RuntimeError("No MIDI file generated by Basic Pitch.")
+
+    final_midi = job_output_dir / "bass_hybrid.mid"
+
+    update_job(job_id, progress=70, status="Matching bass pitch with original audio timing...")
+
+    # MTL 게이트 offset 리뷰 (bass-note-verifier 실험, 환경변수로 opt-in).
+    # 기본은 baseline. BASS_MTL=1이면 gated offset(위치 B) + octave shadow audit.
+    _bass_cmd = [
+        _py(),
+        str(BASS_HYBRID_SCRIPT_PATH),
+        str(input_audio),
+        str(raw_midi),
+        str(final_midi),
+    ]
+    if os.environ.get("BASS_MTL") == "1":
+        _bass_cmd += ["--mtl-offset", "--mtl-octave-audit"]
+
+    subprocess.run(_bass_cmd, check=True)
+
+    if not final_midi.exists():
+        raise RuntimeError(f"Bass MIDI was not created: {final_midi}")
+
+    update_job(
+        job_id,
+        progress=100,
+        status="Done.",
+        result={
+            "midiUrl": f"http://localhost:8000/outputs/{job_id}/{final_midi.name}",
+            "midiFileName": final_midi.name,
+            "mode": "bass",
+        },
+    )
+
+def run_general_mode(job_id: str, input_audio: Path, job_output_dir: Path):
+    update_job(job_id, progress=10, status="Uploaded audio.")
+    update_job(job_id, progress=25, status="Running Basic Pitch general transcription...")
+
+    subprocess.run(
+        _basic_pitch_cmd(str(job_output_dir), str(input_audio)),
+        check=True,
+    )
+
+    update_job(job_id, progress=85, status="Finding generated MIDI...")
+
+    midi_file = find_midi_in_dir(job_output_dir)
+
+    if midi_file is None:
+        raise RuntimeError("No MIDI file generated by Basic Pitch.")
+
+    final_midi = job_output_dir / "general_basic_pitch.mid"
+    shutil.copyfile(midi_file, final_midi)
+
+    update_job(
+        job_id,
+        progress=100,
+        status="Done.",
+        result={
+            "midiUrl": f"http://localhost:8000/outputs/{job_id}/{final_midi.name}",
+            "midiFileName": final_midi.name,
+            "mode": "general",
+        },
+    )
+
+
+def run_separate_job(job_id: str, input_audio: Path, job_output_dir: Path, model: str):
+    """HT-Demucs로 업로드 1곡을 4-stem(vocals/drums/bass/other)으로 분리.
+
+    research 문서 1번(Stem Separation) Stage 0. 기존 transcribe 모드와 독립적인
+    별도 파이프라인이라 piano/bass/general 로직에 전혀 영향 없음.
+    """
+    update_job(job_id, progress=10, status="Uploaded audio.")
+    update_job(
+        job_id,
+        progress=25,
+        status="Running HT-Demucs stem separation (this can take a while on CPU)...",
+    )
+
+    device = os.environ.get("DEMUCS_DEVICE", "cpu")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(DEMUCS_SCRIPT_PATH),
+            str(input_audio),
+            str(job_output_dir),
+            "--model",
+            model,
+            "--device",
+            device,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    # 스크립트는 마지막 줄에 JSON으로 stem 파일명을 찍는다.
+    stems_info = None
+    for line in reversed(proc.stdout.strip().splitlines()):
+        line = line.strip()
+        if line.startswith("{"):
+            stems_info = json.loads(line)
+            break
+
+    if not stems_info or not stems_info.get("stems"):
+        raise RuntimeError("Demucs 출력에서 stem 정보를 찾지 못했습니다.")
+
+    update_job(job_id, progress=90, status="Packaging stems...")
+
+    stem_urls = {
+        stem_name: f"http://localhost:8000/outputs/{job_id}/{file_name}"
+        for stem_name, file_name in stems_info["stems"].items()
+    }
+
+    update_job(
+        job_id,
+        progress=100,
+        status="Done.",
+        result={
+            "stems": stem_urls,
+            "model": stems_info.get("model", model),
+            "device": stems_info.get("device", device),
+            "mode": "separate",
+        },
+    )
+
+
+def process_separate_job(job_id: str, input_audio: Path, model: str):
+    job_output_dir = OUTPUT_DIR / job_id
+    job_output_dir.mkdir(exist_ok=True)
+
+    try:
+        update_job(job_id, progress=5, status="Starting stem separation...")
+        run_separate_job(job_id, input_audio, job_output_dir, model)
+    except subprocess.CalledProcessError as e:
+        detail = (e.stderr or "").strip().splitlines()[-5:]
+        update_job(
+            job_id,
+            progress=100,
+            status="Error.",
+            error="Demucs 실행 실패: " + " | ".join(detail),
+        )
+    except Exception as e:
+        update_job(job_id, progress=100, status="Error.", error=str(e))
+
+
+def run_drums_job(job_id: str, input_audio: Path, job_output_dir: Path, separate: bool):
+    """Drum ADT: 오디오 → 3-class(kick/snare/hihat) GM 드럼 MIDI.
+
+    research 문서 2번. separate=True면 먼저 Demucs로 drums.wav를 분리(Stage 0)한 뒤
+    그 위에 ADT(Stage 2-D)를 태운다(문서: separation → ADT 순서가 정확도를 높임).
+    separate=False면 이미 드럼 단독 오디오라고 보고 바로 ADT.
+    기존 piano/bass/general 파이프라인과 완전히 독립.
+    """
+    update_job(job_id, progress=10, status="Uploaded audio.")
+
+    adt_input = input_audio
+    drums_stem_url = None
+    device = os.environ.get("DEMUCS_DEVICE", "cpu")
+
+    if separate:
+        update_job(
+            job_id,
+            progress=25,
+            status="Separating drums stem with HT-Demucs (CPU can be slow)...",
+        )
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(DEMUCS_SCRIPT_PATH),
+                str(input_audio),
+                str(job_output_dir),
+                "--model",
+                "htdemucs",
+                "--device",
+                device,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        stems_info = None
+        for line in reversed(proc.stdout.strip().splitlines()):
+            line = line.strip()
+            if line.startswith("{"):
+                stems_info = json.loads(line)
+                break
+        if not stems_info or "drums" not in stems_info.get("stems", {}):
+            raise RuntimeError("Demucs 출력에서 drums stem을 찾지 못했습니다.")
+
+        drums_name = stems_info["stems"]["drums"]
+        adt_input = job_output_dir / drums_name
+        drums_stem_url = f"http://localhost:8000/outputs/{job_id}/{drums_name}"
+
+    update_job(job_id, progress=65, status="Transcribing drums (kick/snare/hihat)...")
+
+    drum_midi = job_output_dir / "drums.mid"
+    audit_csv = job_output_dir / "drum_adt_audit.csv"
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(DRUM_SCRIPT_PATH),
+            str(adt_input),
+            str(drum_midi),
+            "--audit",
+            str(audit_csv),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    counts = {}
+    for line in reversed(proc.stdout.strip().splitlines()):
+        line = line.strip()
+        if line.startswith("{"):
+            counts = json.loads(line).get("counts", {})
+            break
+
+    if not drum_midi.exists():
+        raise RuntimeError(f"드럼 MIDI가 생성되지 않았습니다: {drum_midi}")
+
+    result = {
+        "midiUrl": f"http://localhost:8000/outputs/{job_id}/{drum_midi.name}",
+        "midiFileName": drum_midi.name,
+        "mode": "drums",
+        "counts": counts,
+    }
+    if drums_stem_url is not None:
+        result["drumsStemUrl"] = drums_stem_url
+
+    update_job(job_id, progress=100, status="Done.", result=result)
+
+
+def process_drums_job(job_id: str, input_audio: Path, separate: bool):
+    job_output_dir = OUTPUT_DIR / job_id
+    job_output_dir.mkdir(exist_ok=True)
+
+    try:
+        update_job(job_id, progress=5, status="Starting drum transcription...")
+        run_drums_job(job_id, input_audio, job_output_dir, separate)
+    except subprocess.CalledProcessError as e:
+        detail = (e.stderr or "").strip().splitlines()[-5:]
+        update_job(
+            job_id,
+            progress=100,
+            status="Error.",
+            error="Drum ADT 실행 실패: " + " | ".join(detail),
+        )
+    except Exception as e:
+        update_job(job_id, progress=100, status="Error.", error=str(e))
+
+
+def process_job(job_id: str, input_audio: Path, mode: str):
+    job_output_dir = OUTPUT_DIR / job_id
+    job_output_dir.mkdir(exist_ok=True)
+
+    try:
+        update_job(job_id, progress=5, status="Starting job...")
+
+        if mode == "piano":
+            run_piano_mode(job_id, input_audio, job_output_dir)
+        elif mode == "bass":
+            run_bass_mode(job_id, input_audio, job_output_dir)
+        elif mode == "general":
+            run_general_mode(job_id, input_audio, job_output_dir)
+        else:
+            raise ValueError(f"Unknown mode: {mode}")
+
+    except Exception as e:
+        update_job(
+            job_id,
+            progress=100,
+            status="Error.",
+            error=str(e),
+        )
+
+
+@app.post("/api/transcribe")
+async def transcribe(
+    file: UploadFile = File(...),
+    mode: str = Form("piano"),
+):
+    job_id = str(uuid4())
+
+    original_suffix = Path(file.filename).suffix or ".mp3"
+    input_audio = UPLOAD_DIR / f"{job_id}{original_suffix}"
+
+    await save_upload(file, input_audio)
+
+    JOBS[job_id] = {
+        "jobId": job_id,
+        "mode": mode,
+        "progress": 0,
+        "status": "Queued.",
+        "error": None,
+        "result": None,
+    }
+
+    thread = threading.Thread(
+        target=process_job,
+        args=(job_id, input_audio, mode),
+        daemon=True,
+    )
+    thread.start()
+
+    return {
+        "jobId": job_id,
+    }
+
+
+@app.post("/api/separate")
+async def separate(
+    file: UploadFile = File(...),
+    model: str = Form("htdemucs"),
+):
+    """업로드 1곡 → HT-Demucs 4-stem 분리. jobId를 반환하고 폴링으로 진행 확인."""
+    job_id = str(uuid4())
+
+    original_suffix = Path(file.filename).suffix or ".mp3"
+    input_audio = UPLOAD_DIR / f"{job_id}{original_suffix}"
+
+    await save_upload(file, input_audio)
+
+    JOBS[job_id] = {
+        "jobId": job_id,
+        "mode": "separate",
+        "progress": 0,
+        "status": "Queued.",
+        "error": None,
+        "result": None,
+    }
+
+    thread = threading.Thread(
+        target=process_separate_job,
+        args=(job_id, input_audio, model),
+        daemon=True,
+    )
+    thread.start()
+
+    return {
+        "jobId": job_id,
+    }
+
+
+@app.post("/api/drums")
+async def drums(
+    file: UploadFile = File(...),
+    separate: str = Form("true"),
+):
+    """드럼 오디오 → kick/snare/hihat GM 드럼 MIDI. jobId 반환 후 폴링.
+
+    separate="true"(기본): 업로드가 밴드 믹스여도 Demucs로 drums stem을 먼저 분리.
+    separate="false": 이미 드럼 단독 오디오일 때(분리 스킵, 더 빠름).
+    """
+    job_id = str(uuid4())
+
+    original_suffix = Path(file.filename).suffix or ".mp3"
+    input_audio = UPLOAD_DIR / f"{job_id}{original_suffix}"
+
+    await save_upload(file, input_audio)
+
+    do_separate = str(separate).lower() not in ("false", "0", "no")
+
+    JOBS[job_id] = {
+        "jobId": job_id,
+        "mode": "drums",
+        "progress": 0,
+        "status": "Queued.",
+        "error": None,
+        "result": None,
+    }
+
+    thread = threading.Thread(
+        target=process_drums_job,
+        args=(job_id, input_audio, do_separate),
+        daemon=True,
+    )
+    thread.start()
+
+    return {
+        "jobId": job_id,
+    }
+
+
+@app.get("/api/jobs/{job_id}")
+async def get_job(job_id: str):
+    if job_id not in JOBS:
+        return {
+            "error": "Job not found",
+        }
+
+    return JOBS[job_id]

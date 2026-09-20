@@ -1,0 +1,70 @@
+{
+  "_note": "LOSO 평가용. 각 곡은 그 곡을 빼고 학습한 모델로 채점한다 — 배포 모델은 이 7곡 전부로 학습돼 있어 그대로 쓰면 A/B/C가 전부 in-sample이 된다.",
+  "bed_gain": 1.0,
+  "strip_bed_drums": true,
+  "songs": [
+    {
+      "name": "drums_sample4_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample4_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample4.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample4_gtstem.wav",
+      "bed_source": "Fast Company - the Eagles",
+      "model": "eval/_loso_models/without_drums_sample4.joblib"
+    },
+    {
+      "name": "drums_sample5_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample5_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample5.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample5_gtstem.wav",
+      "bed_source": "Mad About You - Toto",
+      "model": "eval/_loso_models/without_drums_sample5.joblib"
+    },
+    {
+      "name": "drums_sample6_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample6_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample6.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample6_gtstem.wav",
+      "bed_source": "The Hunter - Jennifer Warnes",
+      "model": "eval/_loso_models/without_drums_sample6.joblib"
+    },
+    {
+      "name": "drums_sample7_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample7_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample7.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample7_gtstem.wav",
+      "bed_source": "Fast Company - the Eagles",
+      "model": "eval/_loso_models/without_drums_sample7.joblib"
+    },
+    {
+      "name": "drums_sample8_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample8_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample8.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample8_gtstem.wav",
+      "bed_source": "Mad About You - Toto",
+      "model": "eval/_loso_models/without_drums_sample8.joblib"
+    },
+    {
+      "name": "drums_sample9_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample9_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample9.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample9_gtstem.wav",
+      "bed_source": "The Hunter - Jennifer Warnes",
+      "model": "eval/_loso_models/without_drums_sample9.joblib"
+    },
+    {
+      "name": "drums_sample11_synth",
+      "instrument": "drums",
+      "mix": "eval/synthetic_mixes_clean/drums_sample11_mix.wav",
+      "gt_midi": "eval/ground_truth/drums_sample11.mid",
+      "gt_stem": "eval/synthetic_mixes_clean/drums_sample11_gtstem.wav",
+      "bed_source": "Fast Company - the Eagles",
+      "model": "eval/_loso_models/without_drums_sample11.joblib"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# python venv / cache
+.venv-backend/
+__pycache__/
+
+# job data
+outputs/
+uploads/
+
+# experiment backups / disabled scripts
+backend/scripts/_backup/
+*.before_*
+*.disabled
+
+# eval harness: large audio fixtures + run outputs, keep ground-truth mid tracked
+eval/ground_truth/*.wav
+eval/runs/
+# 파생 피처 캐시(재생성 가능)
+eval/drum_feature_cache.npz
+
+eval/_drum_cache/
+
+# 스템 분리 하니스(B-0): 분리 캐시 / 합성 믹스 — 전부 스크립트로 재생성 가능
+eval/_sep_cache/
+eval/_synth_work/
+eval/synthetic_mixes*/
+
+# LOSO 폴드 모델(재생성 가능)
+eval/_loso_models/
+
+# E-GMD 피처 캐시(재생성 가능)
+eval/_egmd_cache/
+.claude/
+app/_archive/

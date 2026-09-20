@@ -1,0 +1,117 @@
+{
+  "_purpose": "B-0 3자 비교 재현 기준선. 스크립트 수정 후 값이 달라지면 회귀를 의심할 것.",
+  "_determinism": "이 파이프라인에는 난수가 없다. 베드 배정은 i % len(beds) 고정, Demucs/전사 모두 결정적. ★ 나중에 random/shuffle을 추가하면 이 기준선이 조용히 깨지므로, 난수를 도입할 경우 반드시 시드를 명시하고 여기에 기록할 것.",
+  "_env": {
+    "demucs_model": "htdemucs",
+    "device": "mps",
+    "bed_gain": 1.0,
+    "sr": 44100,
+    "onset_tol_sec": 0.05
+  },
+  "artifact_sha256_16": {
+    "eval/synthetic_mixes/drums_sample11_gtstem.wav": "29684614f63bade5",
+    "eval/synthetic_mixes/drums_sample11_mix.wav": "28f4be8ce2366a23",
+    "eval/synthetic_mixes/drums_sample4_gtstem.wav": "0141fd252860729c",
+    "eval/synthetic_mixes/drums_sample4_mix.wav": "3dd9cbada10809d5",
+    "eval/synthetic_mixes/drums_sample5_gtstem.wav": "305917131543d6b4",
+    "eval/synthetic_mixes/drums_sample5_mix.wav": "4bea3b8036e57645",
+    "eval/synthetic_mixes/drums_sample6_gtstem.wav": "4ac792d9f7047303",
+    "eval/synthetic_mixes/drums_sample6_mix.wav": "39499f7f20938ba4",
+    "eval/synthetic_mixes/drums_sample7_gtstem.wav": "7b02b4f29fe2726a",
+    "eval/synthetic_mixes/drums_sample7_mix.wav": "11da8b6628901c5f",
+    "eval/synthetic_mixes/drums_sample8_gtstem.wav": "8385c2bcca9e1cb4",
+    "eval/synthetic_mixes/drums_sample8_mix.wav": "4198da9ea2c134cc",
+    "eval/synthetic_mixes/drums_sample9_gtstem.wav": "46e03b988c88ccd9",
+    "eval/synthetic_mixes/drums_sample9_mix.wav": "83ebe1a714175804",
+    "eval/synthetic_mixes_clean/drums_sample11_gtstem.wav": "29684614f63bade5",
+    "eval/synthetic_mixes_clean/drums_sample11_mix.wav": "7daa2f1c9b79700c",
+    "eval/synthetic_mixes_clean/drums_sample4_gtstem.wav": "0141fd252860729c",
+    "eval/synthetic_mixes_clean/drums_sample4_mix.wav": "010dbad0a643c917",
+    "eval/synthetic_mixes_clean/drums_sample5_gtstem.wav": "305917131543d6b4",
+    "eval/synthetic_mixes_clean/drums_sample5_mix.wav": "a19a53adfd8475a9",
+    "eval/synthetic_mixes_clean/drums_sample6_gtstem.wav": "4ac792d9f7047303",
+    "eval/synthetic_mixes_clean/drums_sample6_mix.wav": "bcfe952d27d4c34a",
+    "eval/synthetic_mixes_clean/drums_sample7_gtstem.wav": "7b02b4f29fe2726a",
+    "eval/synthetic_mixes_clean/drums_sample7_mix.wav": "bf291ac4574f0e3c",
+    "eval/synthetic_mixes_clean/drums_sample8_gtstem.wav": "8385c2bcca9e1cb4",
+    "eval/synthetic_mixes_clean/drums_sample8_mix.wav": "01e096f3b42004b5",
+    "eval/synthetic_mixes_clean/drums_sample9_gtstem.wav": "46e03b988c88ccd9",
+    "eval/synthetic_mixes_clean/drums_sample9_mix.wav": "dee668af3067f316"
+  },
+  "headline_f1": {
+    "synth": {
+      "drums_sample4_synth": {
+        "A": 0.4713,
+        "B": 0.8035,
+        "C": 0.9151
+      },
+      "drums_sample5_synth": {
+        "A": 0.2991,
+        "B": 0.7154,
+        "C": 0.7303
+      },
+      "drums_sample6_synth": {
+        "A": 0.476,
+        "B": 0.9889,
+        "C": 1.0
+      },
+      "drums_sample7_synth": {
+        "A": 0.4818,
+        "B": 0.8986,
+        "C": 0.9209
+      },
+      "drums_sample8_synth": {
+        "A": 0.4232,
+        "B": 0.7452,
+        "C": 0.9755
+      },
+      "drums_sample9_synth": {
+        "A": 0.4375,
+        "B": 0.9146,
+        "C": 0.9241
+      },
+      "drums_sample11_synth": {
+        "A": 0.3977,
+        "B": 0.8326,
+        "C": 0.9348
+      }
+    },
+    "synth_clean": {
+      "drums_sample4_synth": {
+        "A": 0.4769,
+        "B": 0.8198,
+        "C": 0.9151
+      },
+      "drums_sample5_synth": {
+        "A": 0.3218,
+        "B": 0.7186,
+        "C": 0.7303
+      },
+      "drums_sample6_synth": {
+        "A": 0.4752,
+        "B": 0.9874,
+        "C": 1.0
+      },
+      "drums_sample7_synth": {
+        "A": 0.4913,
+        "B": 0.9004,
+        "C": 0.9209
+      },
+      "drums_sample8_synth": {
+        "A": 0.4336,
+        "B": 0.7624,
+        "C": 0.9755
+      },
+      "drums_sample9_synth": {
+        "A": 0.4407,
+        "B": 0.9179,
+        "C": 0.9241
+      },
+      "drums_sample11_synth": {
+        "A": 0.4136,
+        "B": 0.8657,
+        "C": 0.9348
+      }
+    }
+  }
+}

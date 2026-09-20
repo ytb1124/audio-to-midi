@@ -1,0 +1,61 @@
+{
+  "_note": "gt_stem이 없어 경로 C(상한선)는 미측정. Slakh2100 등 stem+MIDI 한 세트 데이터 필요.",
+  "songs": [
+    {
+      "name": "drums_sample4",
+      "instrument": "drums",
+      "mix": "eval/ground_truth/drums_sample4.wav",
+      "gt_midi": "eval/ground_truth/drums_sample4.mid",
+      "gt_stem": null
+    },
+    {
+      "name": "drums_sample5",
+      "instrument": "drums",
+      "mix": "eval/ground_truth/drums_sample5.wav",
+      "gt_midi": "eval/ground_truth/drums_sample5.mid",
+      "gt_stem": null
+    },
+    {
+      "name": "drums_sample6",
+      "instrument": "drums",
+      "mix": "eval/ground_truth/drums_sample6.wav",
+      "gt_midi": "eval/ground_truth/drums_sample6.mid",
+      "gt_stem": null
+    },
+    {
+      "name": "drums_sample7",
+      "instrument": "drums",
+      "mix": "eval/ground_truth/drums_sample7.wav",
+      "gt_midi": "eval/ground_truth/drums_sample7.mid",
+      "gt_stem": null
+    },
+    {
+      "name": "drums_sample8",
+      "instrument": "drums",
+      "mix": "eval/ground_truth/drums_sample8.wav",
+      "gt_midi": "eval/ground_truth/drums_sample8.mid",
+      "gt_stem": null
+    },
+    {
+      "name": "drums_sample9",
+      "instrument": "drums",
+      "mix": "eval/ground_truth/drums_sample9.wav",
+      "gt_midi": "eval/ground_truth/drums_sample9.mid",
+      "gt_stem": null
+    },
+    {
+      "name": "drums_sample10",
+      "instrument": "drums",
+      "mix": "eval/ground_truth/drums_sample10.wav",
+      "gt_midi": "eval/ground_truth/drums_sample10.mid",
+      "gt_stem": null
+    },
+    {
+      "name": "drums_sample11",
+      "instrument": "drums",
+      "mix": "eval/ground_truth/drums_sample11.wav",
+      "gt_midi": "eval/ground_truth/drums_sample11.mid",
+      "gt_stem": null
+    }
+  ]
+}

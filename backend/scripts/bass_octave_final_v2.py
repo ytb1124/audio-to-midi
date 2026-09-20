@@ -1,0 +1,600 @@
+#!/usr/bin/env python3
+"""
+학습된 분류기(bass_octave_final_model.joblib)로 최종 옥타브를 정리한다.
+bass_octave_final.py(v1, CQT harmonic score 단독 argmax)의 후속.
+
+배경: eval/train_octave_classifier.py 실험 — bass_test(정상 톤)에서는 v1도
+이미 99.92% 정확했지만, 완전히 새로운 톤(bass_sample3, Contemporary Soul)
+홀드아웃에서는 v1이 1.51%인 반면 학습 분류기는 88.17%, 같은 패치의 다른 곡
+(bass_sample5)에서는 99.79%. CREPE/Basic Pitch confidence는 기여가 거의
+없어 배포 피처에서 제외(계산 비용만 아낌) — CQT 변형 + pYIN + 근처 노트
+컨텍스트만 사용.
+
+노트를 삭제/추가하지 않는다. 같은 pitch class 내에서 옥타브만 재판정한다.
+"""
+import argparse
+import csv
+import sys
+from pathlib import Path
+
+import numpy as np
+
+MIN_MIDI_DEFAULT = 28
+MAX_MIDI_DEFAULT = 60
+NEIGHBOR_WINDOW_SEC = 2.5
+
+
+def eprint(*args):
+    print(*args, file=sys.stderr, flush=True)
+
+
+def midi_to_name(midi_note: int) -> str:
+    names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    return f"{names[midi_note % 12]}{midi_note // 12 - 1}"
+
+
+def load_audio(audio_path):
+    import librosa
+
+    y, sr = librosa.load(str(audio_path), sr=22050, mono=True)
+    if len(y) == 0:
+        raise RuntimeError("Empty audio")
+    peak = float(np.max(np.abs(y)))
+    if peak > 0:
+        y = y / peak
+    return y, sr
+
+
+def build_cqt(y, sr):
+    import librosa
+
+    hop = 256
+    base_midi = 24
+    C = np.abs(
+        librosa.cqt(
+            y=y, sr=sr, hop_length=hop, fmin=librosa.note_to_hz("C1"),
+            n_bins=72, bins_per_octave=12,
+        )
+    )
+    C = np.log1p(10.0 * C)
+    return C, hop, base_midi
+
+
+def cqt_energy(C, hop, sr, base_midi, pitch, start, end):
+    idx = int(round(pitch - base_midi))
+    if idx < 0 or idx >= C.shape[0]:
+        return 0.0
+    a = max(0, int((start + 0.015) * sr / hop))
+    b = min(C.shape[1], int(min(end, start + 0.30) * sr / hop) + 1)
+    if b <= a:
+        return 0.0
+    return float(np.median(C[idx, a:b]))
+
+
+def compute_pyin(y, sr):
+    import librosa
+
+    hop = 256
+    f0, voiced_flag, voiced_prob = librosa.pyin(
+        y, fmin=librosa.note_to_hz("E1"), fmax=librosa.note_to_hz("C5"),
+        sr=sr, frame_length=2048, hop_length=hop, fill_na=np.nan,
+    )
+    midi = np.full(len(f0), np.nan)
+    valid = np.isfinite(f0)
+    with np.errstate(divide="ignore"):
+        midi[valid] = 69.0 + 12.0 * np.log2(f0[valid] / 440.0)
+    voiced_prob = np.nan_to_num(voiced_prob, nan=0.0)
+    return midi, voiced_prob, hop
+
+
+def pyin_stats(pyin_midi, pyin_prob, hop, sr, start, end):
+    a = max(0, int(start * sr / hop))
+    b = min(len(pyin_midi), int(min(end, start + 0.35) * sr / hop) + 1)
+    if b <= a:
+        return None, 0.0
+    seg = pyin_midi[a:b]
+    prob = pyin_prob[a:b]
+    valid = np.isfinite(seg)
+    if not np.any(valid):
+        return None, float(np.median(prob)) if len(prob) else 0.0
+    return float(np.nanmedian(seg[valid])), float(np.nanmedian(prob[valid]))
+
+
+def compute_pyin_lock_track(y, sr):
+    """오버라이드 판정 전용 pYIN 트랙 (fmin=C1).
+
+    모델 피처용 compute_pyin은 fmin=E1이라 E1(41.2Hz)이 경계 bin이 되는데,
+    이전 저음 노트의 잔향이 짧은 노트 밑에 깔려 있으면 경계 bin으로 잘못
+    잠기는 아티팩트가 실측됨 (Bass_2 82.62s 등: E1-config는 28, C1-config는
+    40으로 서로 다르게 추적). 판정용 트랙은 sub-E1 여유를 둬서 이 아티팩트를
+    피한다. 피처용 트랙은 학습 분포 유지를 위해 그대로 둔다.
+    """
+    import librosa
+
+    hop = 256
+    f0, voiced_flag, voiced_prob = librosa.pyin(
+        y, fmin=librosa.note_to_hz("C1"), fmax=librosa.note_to_hz("C5"),
+        sr=sr, frame_length=2048, hop_length=hop, fill_na=np.nan,
+    )
+    midi = np.full(len(f0), np.nan)
+    valid = np.isfinite(f0)
+    with np.errstate(divide="ignore"):
+        midi[valid] = 69.0 + 12.0 * np.log2(f0[valid] / 440.0)
+    return midi, hop
+
+
+def pyin_lock_stats(pyin_midi, hop, sr, start, end):
+    """오버라이드 판정 전용 pYIN lock 품질 측정.
+
+    모델 피처용 pyin_stats(첫 0.35s, 어택 포함)와 달리, 어택 직후를
+    건너뛰고 (median, voiced_frac, mad, spread, n_valid)를 반환한다.
+    voiced_frac은 창 내 프레임 중 pYIN이 추적에 성공한 비율, mad는 추적된
+    피치의 중앙절대편차(슬라이드/벤딩이면 커짐), spread는 max-min(프레임이
+    2~5개뿐인 초단타 노트에서 mad가 이동을 가려버리는 케이스용 — 실측:
+    Bass_2 121.75s 프레임 29.2→28.4 하강이 mad 0.05로 통과), n_valid는
+    추적 성공 프레임 수. 노트 초반 0.12s 창의 median이 전체 창과 0.5반음
+    이상 다르면(노트 경계 침범/전이 의심) lock으로 치지 않는다.
+    """
+    dur = max(end - start, 1e-6)
+    skip = min(0.03, dur * 0.2)
+    a = max(0, int((start + skip) * sr / hop))
+    b = min(len(pyin_midi), int(min(end, start + 0.35) * sr / hop) + 1)
+    if b <= a:
+        return None, 0.0, None, None, 0
+    seg = pyin_midi[a:b]
+    valid = np.isfinite(seg)
+    voiced_frac = float(valid.sum()) / len(seg)
+    if not np.any(valid):
+        return None, voiced_frac, None, None, 0
+    med = float(np.nanmedian(seg[valid]))
+    mad = float(np.nanmedian(np.abs(seg[valid] - med)))
+    spread = float(np.nanmax(seg[valid]) - np.nanmin(seg[valid]))
+    n_valid = int(valid.sum())
+
+    # 초반 창 일치 검증: 초반 프레임은 이 노트 소유가 거의 확실하므로,
+    # 전체 창 median이 초반과 다르면 다음 노트를 삼킨 것일 수 있다.
+    # b_early는 반드시 노트 창(b) 안으로 캡 — 캡 없이는 0.15s 미만 노트에서
+    # 다음 노트 프레임까지 읽어 early_med가 오염되고, 완벽히 안정된 lock도
+    # 탈락시키는 버그가 됨 (실측: Bass_2 119.37s 유령, med 28.0/mad 0.0인데
+    # 노트 밖 35.6 프레임 때문에 early_med 35.6으로 unlock → 모델이 B3 선택).
+    b_early = min(len(pyin_midi), int((start + skip + 0.12) * sr / hop) + 1, b)
+    if b_early > a:
+        early = pyin_midi[a:b_early]
+        early_valid = np.isfinite(early)
+        if np.any(early_valid):
+            early_med = float(np.nanmedian(early[early_valid]))
+            if abs(early_med - med) > 0.5:
+                return med, voiced_frac, None, spread, n_valid  # mad=None → locked 판정 탈락
+
+    return med, voiced_frac, mad, spread, n_valid
+
+
+def read_midi_notes(midi_path):
+    import pretty_midi
+
+    pm = pretty_midi.PrettyMIDI(str(midi_path))
+    inst = None
+    for candidate in pm.instruments:
+        if not candidate.is_drum:
+            inst = candidate
+            break
+    if inst is None:
+        return pm, None, []
+    inst.notes.sort(key=lambda n: (n.start, n.pitch))
+    return pm, inst, inst.notes
+
+
+def octave_final_v2(audio_path, midi_in, midi_out, output_dir, min_midi=MIN_MIDI_DEFAULT,
+                     max_midi=MAX_MIDI_DEFAULT, model_path=None):
+    import joblib
+    import pandas as pd
+
+    audio_path = Path(audio_path)
+    midi_in = Path(midi_in)
+    midi_out = Path(midi_out)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if model_path is None:
+        model_path = Path(__file__).resolve().parent / "bass_octave_final_model.joblib"
+
+    bundle = joblib.load(model_path)
+    clf = bundle["model"]
+    feature_cols = bundle["feature_cols"]
+
+    # 공유 캐시 사용 (bass_audio_cache): 동일 파라미터 계산을 job 내 1회로.
+    # 캐시 실패 시에도 동일 코드 경로로 계산되므로 결과는 비트 동일.
+    from bass_audio_cache import cqt_c1_72, load_audio_22050, pyin_track
+
+    y, sr = load_audio_22050(audio_path, output_dir)
+    C, cqt_hop, base_midi = cqt_c1_72(y, sr, output_dir)
+
+    # 파이프라인 최대 병목인 pYIN 2회(피처용 E1~C5 + 판정용 C1~C5)를 병렬로.
+    # 실패 시 직렬 계산으로 폴백 (결과 동일).
+    try:
+        from concurrent.futures import ProcessPoolExecutor
+
+        with ProcessPoolExecutor(max_workers=2) as _pool:
+            _fut_feat = _pool.submit(pyin_track, y, sr, "E1", "C5", str(output_dir), "e1c5")
+            _fut_lock = _pool.submit(pyin_track, y, sr, "C1", "C5", str(output_dir), "c1c5")
+            pyin_midi, pyin_prob, pyin_hop = _fut_feat.result()
+            lock_midi, _lock_prob, lock_hop = _fut_lock.result()
+    except Exception as exc:
+        eprint(f"Warning: parallel pyin failed ({exc}) — serial fallback")
+        pyin_midi, pyin_prob, pyin_hop = pyin_track(y, sr, "E1", "C5", output_dir, "e1c5")
+        lock_midi, _lock_prob, lock_hop = pyin_track(y, sr, "C1", "C5", output_dir, "c1c5")
+
+    pm, inst, notes = read_midi_notes(midi_in)
+    if inst is None or not notes:
+        eprint("No MIDI notes to process")
+        return
+
+    note_list = [(float(n.start), float(n.end), int(n.pitch)) for n in notes]
+
+    def raw_harmonic(pitch, start, end):
+        e0 = cqt_energy(C, cqt_hop, sr, base_midi, pitch, start, end)
+        e12 = cqt_energy(C, cqt_hop, sr, base_midi, pitch + 12, start, end)
+        e19 = cqt_energy(C, cqt_hop, sr, base_midi, pitch + 19, start, end)
+        e24 = cqt_energy(C, cqt_hop, sr, base_midi, pitch + 24, start, end)
+        return e0 + 0.42 * e12 + 0.22 * e19 + 0.12 * e24
+
+    audit_rows = []
+    changed = 0
+    decisions = []
+
+    for i, note in enumerate(notes):
+        old_pitch = int(note.pitch)
+        start = float(note.start)
+        end = float(note.end)
+        pitch_class = old_pitch % 12
+
+        candidates = [p for p in range(min_midi, max_midi + 1) if p % 12 == pitch_class]
+        if not candidates:
+            continue
+
+        py_med, py_conf = pyin_stats(pyin_midi, pyin_prob, pyin_hop, sr, start, end)
+
+        neighbors = [
+            (ns, ne, np_) for j, (ns, ne, np_) in enumerate(note_list)
+            if j != i and np_ % 12 == pitch_class and abs(ns - start) <= NEIGHBOR_WINDOW_SEC
+        ]
+
+        feat_rows = []
+        for cand in candidates:
+            e0 = cqt_energy(C, cqt_hop, sr, base_midi, cand, start, end)
+            e12 = cqt_energy(C, cqt_hop, sr, base_midi, cand + 12, start, end)
+            e_minus12 = cqt_energy(C, cqt_hop, sr, base_midi, cand - 12, start, end)
+            e19 = cqt_energy(C, cqt_hop, sr, base_midi, cand + 19, start, end)
+            e24 = cqt_energy(C, cqt_hop, sr, base_midi, cand + 24, start, end)
+            harmonic = e0 + 0.42 * e12 + 0.22 * e19 + 0.12 * e24
+            pyin_dist = abs(py_med - cand) if py_med is not None else 99.0
+
+            neighbor_support = 0.0
+            for ns, ne, np_ in neighbors:
+                neighbor_support += raw_harmonic(cand, ns, ne)
+            neighbor_support_mean = neighbor_support / len(neighbors) if neighbors else 0.0
+
+            feat_rows.append(
+                {
+                    "candidate": cand,
+                    "cqt_e0": e0,
+                    "cqt_e12": e12,
+                    "cqt_e_minus12": e_minus12,
+                    "cqt_e19": e19,
+                    "cqt_e24": e24,
+                    "cqt_harmonic": harmonic,
+                    "pyin_dist": pyin_dist,
+                    "pyin_conf": py_conf,
+                    "note_duration": end - start,
+                    "neighbor_support_mean": neighbor_support_mean,
+                    "neighbor_count": len(neighbors),
+                }
+            )
+
+        feat_df = pd.DataFrame(feat_rows)
+        scores = clf.predict_proba(feat_df[feature_cols])[:, 1]
+        best_idx = int(np.argmax(scores))
+        model_pick = int(feat_df.loc[best_idx, "candidate"])
+
+        lock_med, lock_voiced, lock_mad, lock_spread, lock_n_valid = pyin_lock_stats(
+            lock_midi, lock_hop, sr, start, end
+        )
+        pyin_locked = (
+            lock_med is not None
+            and lock_voiced >= 0.5
+            and lock_mad is not None
+            and lock_mad <= 0.35
+        )
+        py_cand = None
+        if pyin_locked:
+            cand_arr = feat_df["candidate"].to_numpy()
+            nearest = int(cand_arr[np.argmin(np.abs(cand_arr - lock_med))])
+            if abs(nearest - lock_med) <= 0.5:
+                py_cand = nearest
+
+        decisions.append(
+            {
+                "note": note,
+                "index": i,
+                "start": start,
+                "end": end,
+                "old_pitch": old_pitch,
+                "model_pick": model_pick,
+                "py_cand": py_cand,
+                "lock_med": lock_med,
+                "lock_voiced": lock_voiced,
+                "lock_mad": lock_mad,
+                "lock_spread": lock_spread,
+                "lock_n_valid": lock_n_valid,
+                "locked": pyin_locked,
+            }
+        )
+
+    # ------------------------------------------------------------------
+    # 2-pass: 파일 단위로 "pYIN vs 모델" 어느 쪽을 신뢰할지 투표로 결정.
+    #
+    # 배경 (2026-07-10, Bass_2.wav 실측): 앰프/DI를 거친 실녹음은 기본음이
+    # 2차 배음보다 약한 경우가 흔해서, VST 익스포트로만 학습된 분류기가 CQT
+    # 피처에 이끌려 한 옥타브 위를 고른다(E1→E2). pYIN은 주기성을 직접 재서
+    # 이 경우 옳다. 반대로 bass_test처럼 서브옥타브 성분이 실제로 강한 톤은
+    # pYIN이 100% voiced로 진짜 음의 한 옥타브 아래에 잠기는 아티팩트가
+    # 있어서(D3인데 pYIN=D2), 노트 단위 신호만으로는 두 경우를 구분할 수
+    # 없음이 실측으로 확인됨 (에너지 비율까지 동일).
+    #
+    # 유일하게 분리되는 신호는 파일 단위의 Basic Pitch raw 구조였다:
+    #   - bass_test류(위가 진짜): 충돌 노트에서 BP raw가 위 옥타브도 같이
+    #     들음 — 실측 100%
+    #   - Bass_2류(아래가 진짜): BP raw가 위 옥타브를 대체로 못 들음 — 48%
+    # 그래서 "pYIN이 모델보다 정확히 -12에 잠긴 충돌"들을 모아 BP raw가
+    # 모델 쪽(위)을 들은 비율로 파일 성격을 판정하고, pYIN 신뢰 파일에서만
+    # 노트별 오버라이드를 적용한다 (그 노트의 아래 옥타브를 BP가 실제로
+    # 들은 경우에 한함).
+    # ------------------------------------------------------------------
+    bp_raw_notes = []
+    bp_raw_path = output_dir / "bass_basicpitch_raw.mid"
+    if bp_raw_path.exists():
+        try:
+            import pretty_midi as _pm_mod
+
+            _bp = _pm_mod.PrettyMIDI(str(bp_raw_path))
+            bp_raw_notes = sorted(
+                (float(n.start), float(n.end), int(n.pitch))
+                for i in _bp.instruments
+                if not i.is_drum
+                for n in i.notes
+            )
+        except Exception as exc:
+            eprint(f"Warning: could not read BP raw for octave vote: {exc}")
+
+    def bp_contains(t_start, t_end, pitch, tol=0.08):
+        for s, e, p in bp_raw_notes:
+            if p == pitch and s < t_end + tol and e > t_start - tol:
+                return True
+        return False
+
+    conflicts = [
+        d for d in decisions
+        if d["py_cand"] is not None and d["model_pick"] - d["py_cand"] == 12
+    ]
+
+    trust_pyin = False
+    frac_bp_upper = None
+    if bp_raw_notes and len(conflicts) >= 5:
+        n_upper = sum(
+            1 for d in conflicts if bp_contains(d["start"], d["end"], d["model_pick"])
+        )
+        frac_bp_upper = n_upper / len(conflicts)
+        trust_pyin = frac_bp_upper < 0.7
+
+    eprint(
+        f"Octave final v2 file vote: conflicts={len(conflicts)}, "
+        f"frac_bp_upper={frac_bp_upper if frac_bp_upper is None else round(frac_bp_upper, 2)}, "
+        f"trust_pyin={trust_pyin}"
+    )
+
+    # 파일 투표 결과를 후속 스테이지가 재사용할 수 있게 저장.
+    # fragment merge의 무온셋 병합 규칙이 이걸 게이트로 씀: VST 렌더는
+    # 레가토 반복음이 온셋 트랜지언트 없이도 별개 노트가 맞아서(실측:
+    # bass_test에서 규칙 30건 발동 시 missed 8→24 회귀), 실녹음으로
+    # 판정된 파일(trust_pyin=True)에서만 규칙을 켠다.
+    try:
+        import json as _json
+
+        (output_dir / "bass_octave_file_vote.json").write_text(
+            _json.dumps(
+                {
+                    "trust_pyin": bool(trust_pyin),
+                    "conflicts": len(conflicts),
+                    "frac_bp_upper": frac_bp_upper,
+                }
+            ),
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        eprint(f"Warning: could not write file vote json: {exc}")
+
+    # ------------------------------------------------------------------
+    # 로컬 인토네이션 오프셋 (trust_pyin 파일의 class fix 스냅 보정용):
+    # 실녹음은 프렛 누름/튜닝 때문에 구간별로 세미톤 대비 일관되게 sharp/flat
+    # 할 수 있다 (Bass_2 실측: 도입부 +0.0, 120~135s 구간 +0.3 — 개방현만
+    # 정확하고 프렛 노트가 sharp). 이 상태에서 고정 ±0.3 스냅 게이트는
+    # "실제로는 세미톤에 정확히 잠긴" lock을 0.05 차이로 놓친다 (실측:
+    # 같은 리프의 같은 노트가 34.3은 통과, 34.35는 탈락). 주변 ±8s의
+    # "pYIN이 현재 pitch class를 확인해준" 노트들의 편차 중앙값을 빼서
+    # 스냅한다. 편차 기준을 자기 pitch 일치 노트로 한정하므로, 오프셋이
+    # 0인 파일에서는 아무 것도 달라지지 않는다.
+    # ------------------------------------------------------------------
+    OFFSET_RADIUS_SEC = 8.0
+    OFFSET_MIN_REFS = 5
+    _ref_t, _ref_dev = [], []
+    for d in decisions:
+        if not d["locked"] or d["lock_med"] is None:
+            continue
+        dev = d["lock_med"] - round(d["lock_med"])
+        if abs(dev) <= 0.45 and int(round(d["lock_med"])) % 12 == d["old_pitch"] % 12:
+            _ref_t.append(d["start"])
+            _ref_dev.append(dev)
+    _ref_t = np.asarray(_ref_t)
+    _ref_dev = np.asarray(_ref_dev)
+    file_offset = float(np.median(_ref_dev)) if len(_ref_dev) else 0.0
+
+    def local_intonation_offset(t):
+        if len(_ref_dev) == 0:
+            return 0.0
+        m = np.abs(_ref_t - t) <= OFFSET_RADIUS_SEC
+        if int(m.sum()) >= OFFSET_MIN_REFS:
+            return float(np.median(_ref_dev[m]))
+        return file_offset
+
+    def has_adjacent_note_with_pitch(idx, pitch, max_gap=0.15):
+        """입력 노트열 기준, 바로 이웃 노트가 같은 pitch로 시간상 붙어 있는지."""
+        s, e, _ = note_list[idx]
+        if idx > 0:
+            ps, pe, pp = note_list[idx - 1]
+            if pp == pitch and s - pe <= max_gap:
+                return True
+        if idx + 1 < len(note_list):
+            ns, ne, npch = note_list[idx + 1]
+            if npch == pitch and ns - e <= max_gap:
+                return True
+        return False
+
+    for d in decisions:
+        note = d["note"]
+        old_pitch = d["old_pitch"]
+        model_pick = d["model_pick"]
+        py_cand = d["py_cand"]
+        lock_med = d["lock_med"]
+        new_pitch = model_pick
+        rule = "model"
+
+        # pitch class 정정 (trust_pyin 파일 전용):
+        # 엄격 게이트를 통과한 lock이 노트와 다른 클래스의 세미톤에 정확히
+        # 꽂혀 있으면 pYIN 절대 피치로 정정한다. Bass_2의 배음 유령(B3인데
+        # 오디오는 E1)과 파이프라인 발명 노트(E2인데 오디오는 D2)를 잡음.
+        # 주의: "class는 어느 파일에서나 안전" 가설은 bass_sample4에서 반증됨
+        # (같은 게이트로 12건 발동, other_error 3→9 회귀 — 신스 패치는 GT와
+        # 다른 세미톤에 pYIN이 안정적으로 잠길 수 있음). bass_test에서는
+        # 6/6 정답이었지만, 파일 투표가 pYIN을 신뢰할 때만 발동하도록 제한.
+        class_fix_target = None
+        if (
+            trust_pyin
+            and d["locked"]
+            and d["lock_voiced"] >= 0.7
+            and lock_med is not None
+        ):
+            target = int(round(lock_med))
+            if (
+                abs(lock_med - target) <= 0.3
+                and target % 12 != old_pitch % 12
+                and min_midi <= target <= max_midi
+            ):
+                class_fix_target = target
+
+        if class_fix_target is not None:
+            new_pitch = class_fix_target
+            rule = "pyin_class_fix"
+        elif trust_pyin and d["locked"]:
+            if (
+                py_cand is not None
+                and model_pick - py_cand == 12
+                and (
+                    bp_contains(d["start"], d["end"], py_cand)
+                    # BP 증거가 없어도 lock이 매우 강하면 허용 — 실측: 42.33s
+                    # E1(voiced 0.87, mad~0)이 BP 미확인만으로 오버라이드를
+                    # 놓쳐 루트 반복 리프에 E2 하나가 남는 사례.
+                    or (
+                        d["lock_voiced"] >= 0.75
+                        and d["lock_mad"] is not None
+                        and d["lock_mad"] <= 0.15
+                    )
+                )
+            ):
+                # pYIN 신뢰 파일: BP raw도 들은 아래 옥타브로 오버라이드
+                new_pitch = py_cand
+                rule = "pyin_override"
+            elif (
+                model_pick != old_pitch
+                and lock_med is not None
+                and abs(model_pick - lock_med) > abs(old_pitch - lock_med)
+            ):
+                # 모델의 변경이 잠긴 pYIN에서 더 멀어지면 차단
+                # (배음 유령 노트를 더 높은 배음으로 증폭시키는 케이스 방지)
+                new_pitch = old_pitch
+                rule = "pyin_guard"
+
+        if new_pitch != old_pitch:
+            changed += 1
+            note.pitch = new_pitch
+
+        audit_rows.append(
+            {
+                "start": round(d["start"], 6),
+                "old_pitch": old_pitch,
+                "old_note": midi_to_name(old_pitch),
+                "new_pitch": new_pitch,
+                "new_note": midi_to_name(new_pitch),
+                "changed": int(new_pitch != old_pitch),
+                "model_pick": model_pick,
+                "rule": rule,
+                "pyin_med": round(d["lock_med"], 2) if d["lock_med"] is not None else "",
+                "pyin_voiced_frac": round(d["lock_voiced"], 2),
+            }
+        )
+
+    pm.write(str(midi_out))
+
+    audit_csv = output_dir / "bass_octave_final_v2_audit.csv"
+    with audit_csv.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "start", "old_pitch", "old_note", "new_pitch", "new_note",
+                "changed", "model_pick", "rule", "pyin_med", "pyin_voiced_frac",
+            ],
+        )
+        writer.writeheader()
+        for row in audit_rows:
+            writer.writerow(row)
+
+    n_override = sum(1 for r in audit_rows if r["rule"] == "pyin_override")
+    n_guard = sum(1 for r in audit_rows if r["rule"] == "pyin_guard")
+    n_class = sum(1 for r in audit_rows if r["rule"] == "pyin_class_fix")
+    eprint(
+        f"Octave final v2 rules: pyin_override={n_override}, pyin_guard={n_guard}, "
+        f"pyin_class_fix={n_class}"
+    )
+
+    eprint(f"Octave final v2: {len(notes)} notes, {changed} changed")
+    eprint(f"Saved audit: {audit_csv}")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("audio")
+    parser.add_argument("midi_in")
+    parser.add_argument("midi_out")
+    parser.add_argument("--output-dir", default=None)
+    parser.add_argument("--min-midi", type=int, default=MIN_MIDI_DEFAULT)
+    parser.add_argument("--max-midi", type=int, default=MAX_MIDI_DEFAULT)
+    parser.add_argument("--model-path", default=None)
+    args = parser.parse_args()
+
+    audio = Path(args.audio).expanduser().resolve()
+    midi_in = Path(args.midi_in).expanduser().resolve()
+    midi_out = Path(args.midi_out).expanduser().resolve()
+    output_dir = Path(args.output_dir).expanduser().resolve() if args.output_dir else midi_out.parent
+
+    octave_final_v2(
+        audio_path=audio,
+        midi_in=midi_in,
+        midi_out=midi_out,
+        output_dir=output_dir,
+        min_midi=args.min_midi,
+        max_midi=args.max_midi,
+        model_path=args.model_path,
+    )
+
+
+if __name__ == "__main__":
+    main()

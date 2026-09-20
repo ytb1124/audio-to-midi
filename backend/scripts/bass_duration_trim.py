@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+"""
+노트 끝(duration)이 실제 오디오 감쇠와 무관하게 "다음 onset 직전"으로만
+정해지는 문제를 고친다. 각 노트의 pitch에 대한 CQT 에너지가 실제로
+죽는 지점을 찾아서 거기서 끝을 잘라낸다.
+
+이 스테이지는 노트를 삭제/추가/병합하지 않는다. pitch도 바꾸지 않는다.
+오직 note.end를 줄이는 것만 한다 (늘리지 않음 — fragmentation 문제와
+얽히지 않기 위해 일부러 이렇게 제한함).
+"""
+import argparse
+import csv
+import sys
+from pathlib import Path
+
+import numpy as np
+
+
+def eprint(*args):
+    print(*args, file=sys.stderr, flush=True)
+
+
+def midi_to_name(midi_note: int) -> str:
+    names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    return f"{names[midi_note % 12]}{midi_note // 12 - 1}"
+
+
+def load_audio(audio_path):
+    import librosa
+
+    y, sr = librosa.load(str(audio_path), sr=22050, mono=True)
+    if len(y) == 0:
+        raise RuntimeError("Empty audio")
+
+    peak = float(np.max(np.abs(y)))
+    if peak > 0:
+        y = y / peak
+
+    return y, sr
+
+
+def build_cqt(y, sr):
+    import librosa
+
+    hop = 256
+    base_midi = 24
+
+    C = np.abs(
+        librosa.cqt(
+            y=y, sr=sr, hop_length=hop, fmin=librosa.note_to_hz("C1"),
+            n_bins=72, bins_per_octave=12,
+        )
+    )
+    C = np.log1p(10.0 * C)
+    return C, hop, base_midi
+
+
+def energy_curve(C, hop, sr, base_midi, pitch, start, end):
+    """pitch 위치의 CQT 에너지를, note 구간 동안 짧은 창(window)으로 훑는다."""
+    idx = int(round(pitch - base_midi))
+    if idx < 0 or idx >= C.shape[0]:
+        return np.array([]), np.array([])
+
+    win_frames = max(1, int(0.03 * sr / hop))  # ~30ms 창
+    a = max(0, int(start * sr / hop))
+    b = min(C.shape[1], int(end * sr / hop))
+
+    if b <= a:
+        return np.array([]), np.array([])
+
+    times = []
+    energies = []
+    i = a
+    while i < b:
+        j = min(b, i + win_frames)
+        energies.append(float(np.median(C[idx, i:j])))
+        times.append(i * hop / sr)
+        i = j
+
+    return np.array(times), np.array(energies)
+
+
+def find_decay_point(times, energies, min_dur, release_tail=0.05, decay_ratio=0.35):
+    """onset 근처(attack) 에너지 대비 decay_ratio 밑으로 떨어지는 첫 지점을 찾는다.
+    onset 직후 attack 창은 기준(peak)으로 쓰고, 그 뒤로 쭉 떨어진 채 유지되면
+    거기서 자른다. 짧게 다시 튀는 건(다음 파트 bleed 등) 무시하지 않고
+    '연속으로 낮은 구간이 release_tail 이상 지속'될 때만 확정한다.
+    """
+    if len(energies) < 3:
+        return None
+
+    peak = float(np.max(energies[: max(1, len(energies) // 4)]))  # 초반 1/4 구간의 최댓값을 attack 기준으로
+    if peak <= 1e-6:
+        return None
+
+    threshold = peak * decay_ratio
+    win_step = times[1] - times[0] if len(times) > 1 else 0.03
+    tail_frames = max(1, int(release_tail / win_step))
+
+    below_start = None
+    for i, e in enumerate(energies):
+        if times[i] < min_dur:
+            continue
+
+        if e < threshold:
+            if below_start is None:
+                below_start = i
+            if i - below_start >= tail_frames:
+                return times[below_start]
+        else:
+            below_start = None
+
+    return None
+
+
+def read_midi_notes(midi_path):
+    import pretty_midi
+
+    pm = pretty_midi.PrettyMIDI(str(midi_path))
+    inst = None
+    for candidate in pm.instruments:
+        if not candidate.is_drum:
+            inst = candidate
+            break
+
+    if inst is None:
+        return pm, None, []
+
+    inst.notes.sort(key=lambda n: (n.start, n.pitch))
+    return pm, inst, inst.notes
+
+
+def duration_trim(audio_path, midi_in, midi_out, output_dir, min_dur=0.06,
+                   release_tail=0.05, decay_ratio=0.35, min_trim_gain=0.10):
+    audio_path = Path(audio_path)
+    midi_in = Path(midi_in)
+    midi_out = Path(midi_out)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    from bass_audio_cache import cqt_c1_72, load_audio_22050
+
+    y, sr = load_audio_22050(audio_path, output_dir)
+    C, hop, base_midi = cqt_c1_72(y, sr, output_dir)
+
+    pm, inst, notes = read_midi_notes(midi_in)
+    if inst is None or not notes:
+        eprint("No MIDI notes to process")
+        return
+
+    audit_rows = []
+    trimmed = 0
+
+    for note in notes:
+        old_start = float(note.start)
+        old_end = float(note.end)
+        old_dur = old_end - old_start
+        pitch = int(note.pitch)
+
+        times, energies = energy_curve(C, hop, sr, base_midi, pitch, old_start, old_end)
+        decay_t = find_decay_point(times, energies, min_dur=min_dur, release_tail=release_tail, decay_ratio=decay_ratio)
+
+        new_end = old_end
+        reason = "no_change"
+
+        if decay_t is not None:
+            # decay_t는 energy_curve가 반환한 절대(wall-clock) 시간이라
+            # old_start를 다시 더하면 안 된다.
+            candidate_end = decay_t + release_tail
+            gain = old_end - candidate_end
+
+            if gain >= min_trim_gain and (candidate_end - old_start) >= min_dur:
+                new_end = candidate_end
+                reason = f"trimmed_gain_{gain:.3f}"
+
+        if new_end < old_end - 1e-9:
+            trimmed += 1
+            note.end = new_end
+
+        audit_rows.append(
+            {
+                "start": round(old_start, 6),
+                "pitch": pitch,
+                "note": midi_to_name(pitch),
+                "old_dur": round(old_dur, 4),
+                "new_dur": round(float(note.end - old_start), 4),
+                "reason": reason,
+            }
+        )
+
+    pm.write(str(midi_out))
+
+    audit_csv = output_dir / "bass_duration_trim_audit.csv"
+    with audit_csv.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["start", "pitch", "note", "old_dur", "new_dur", "reason"])
+        writer.writeheader()
+        for row in audit_rows:
+            writer.writerow(row)
+
+    eprint(f"Duration trim: {len(notes)} notes, {trimmed} trimmed")
+    eprint(f"Saved audit: {audit_csv}")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("audio")
+    parser.add_argument("midi_in")
+    parser.add_argument("midi_out")
+    parser.add_argument("--output-dir", default=None)
+    parser.add_argument("--min-dur", type=float, default=0.06)
+    parser.add_argument("--release-tail", type=float, default=0.05)
+    parser.add_argument("--decay-ratio", type=float, default=0.35)
+    parser.add_argument("--min-trim-gain", type=float, default=0.10)
+    args = parser.parse_args()
+
+    audio = Path(args.audio).expanduser().resolve()
+    midi_in = Path(args.midi_in).expanduser().resolve()
+    midi_out = Path(args.midi_out).expanduser().resolve()
+    output_dir = Path(args.output_dir).expanduser().resolve() if args.output_dir else midi_out.parent
+
+    duration_trim(
+        audio_path=audio,
+        midi_in=midi_in,
+        midi_out=midi_out,
+        output_dir=output_dir,
+        min_dur=args.min_dur,
+        release_tail=args.release_tail,
+        decay_ratio=args.decay_ratio,
+        min_trim_gain=args.min_trim_gain,
+    )
+
+
+if __name__ == "__main__":
+    main()

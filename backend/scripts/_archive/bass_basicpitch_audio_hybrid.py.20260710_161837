@@ -1,0 +1,836 @@
+#!/usr/bin/env python3
+import argparse
+import csv
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+
+
+def eprint(*args):
+    print(*args, file=sys.stderr, flush=True)
+
+
+def midi_to_name(midi_note: int) -> str:
+    names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    octave = midi_note // 12 - 1
+    return f"{names[midi_note % 12]}{octave}"
+
+
+def clamp(x, lo, hi):
+    return max(lo, min(hi, x))
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Bass audio to monophonic MIDI hybrid converter v3")
+
+    # 백엔드 호출 방식 대응:
+    # python script.py input.wav raw_basicpitch.mid bass_hybrid.mid
+    parser.add_argument("input_audio", nargs="?", help="Input audio file")
+    parser.add_argument("raw_midi_or_output", nargs="?", help="Raw Basic Pitch MIDI path or output MIDI path")
+    parser.add_argument("output_midi", nargs="?", help="Output MIDI file")
+
+    # flag 방식도 대응
+    parser.add_argument("--input", "--audio", dest="input_audio_flag")
+    parser.add_argument("--output", "--midi", dest="output_midi_flag")
+    parser.add_argument("--output-dir", dest="output_dir")
+
+    parser.add_argument("--min-midi", type=int, default=28, help="Lowest bass MIDI note, default E1")
+    # eval 하니스 실측: 기본값 55(G3)가 실제 정답에 있는 B3(59)/A3(57) 노트를
+    # 파이프라인 전 단계에서 후보 자체로 배제시켜 회귀를 유발함. 60(C4)로 상향.
+    parser.add_argument("--max-midi", type=int, default=60, help="Highest bass MIDI note, default C4")
+
+    # v3 핵심 파라미터
+    parser.add_argument("--onset-merge-sec", type=float, default=0.040)
+    parser.add_argument("--candidate-window-sec", type=float, default=0.135)
+    parser.add_argument("--min-note-sec", type=float, default=0.045)
+    parser.add_argument("--note-end-gap-sec", type=float, default=0.010)
+
+    # raw MIDI detail을 얼마나 보존할지
+    parser.add_argument("--min-raw-velocity", type=int, default=24)
+    parser.add_argument("--skip-weak-audio-only-onsets", action="store_true")
+
+    return parser.parse_args()
+
+
+def resolve_paths(args):
+    input_audio = args.input_audio_flag or args.input_audio
+
+    raw_midi_path = None
+
+    if args.output_midi:
+        raw_midi_path = Path(args.raw_midi_or_output).expanduser().resolve() if args.raw_midi_or_output else None
+        output_midi = args.output_midi_flag or args.output_midi
+    else:
+        output_midi = args.output_midi_flag or args.raw_midi_or_output
+
+    if not input_audio:
+        raise SystemExit("Missing input audio path")
+
+    input_audio = Path(input_audio).expanduser().resolve()
+
+    if output_midi:
+        output_midi = Path(output_midi).expanduser().resolve()
+        output_dir = output_midi.parent
+    else:
+        output_dir = Path(args.output_dir or ".").expanduser().resolve()
+        output_midi = output_dir / "bass_hybrid.mid"
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    return input_audio, raw_midi_path, output_midi, output_dir
+
+
+def run_basic_pitch(input_audio: Path, output_dir: Path, requested_raw_midi_path: Path | None = None):
+    try:
+        from basic_pitch.inference import predict
+    except Exception as exc:
+        raise RuntimeError(
+            "basic_pitch import failed. Activate .venv-backend and install basic-pitch."
+        ) from exc
+
+    eprint("Running Basic Pitch...")
+    model_output, midi_data, note_events = predict(str(input_audio))
+
+    raw_midi_path = requested_raw_midi_path or (output_dir / "bass_basicpitch_raw.mid")
+    raw_midi_path.parent.mkdir(parents=True, exist_ok=True)
+    midi_data.write(str(raw_midi_path))
+
+    # 디버깅하기 쉽게 항상 output_dir/bass_basicpitch_raw.mid에도 복사
+    debug_raw = output_dir / "bass_basicpitch_raw.mid"
+    if debug_raw.resolve() != raw_midi_path.resolve():
+        import shutil
+        shutil.copy2(raw_midi_path, debug_raw)
+
+    # note events json 저장
+    try:
+        serializable = []
+        for ev in note_events:
+            if isinstance(ev, dict):
+                serializable.append(ev)
+            else:
+                serializable.append(list(ev))
+        (output_dir / "bass_basicpitch_note_events.json").write_text(
+            json.dumps(serializable, indent=2),
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        eprint("Warning: could not save note_events json:", exc)
+
+    eprint(f"Saved Basic Pitch raw MIDI: {raw_midi_path}")
+    return raw_midi_path
+
+
+def extract_midi_notes(raw_midi_path: Path, min_raw_velocity: int):
+    import pretty_midi
+
+    pm = pretty_midi.PrettyMIDI(str(raw_midi_path))
+    notes = []
+
+    for inst in pm.instruments:
+        if inst.is_drum:
+            continue
+
+        for n in inst.notes:
+            if n.end <= n.start:
+                continue
+
+            if int(n.velocity) < min_raw_velocity:
+                continue
+
+            notes.append(
+                {
+                    "start": float(n.start),
+                    "end": float(n.end),
+                    "pitch": int(n.pitch),
+                    "velocity": int(n.velocity),
+                }
+            )
+
+    notes.sort(key=lambda x: (x["start"], x["pitch"]))
+    return notes
+
+
+def load_audio(input_audio: Path):
+    import librosa
+
+    y, sr = librosa.load(str(input_audio), sr=22050, mono=True)
+    if len(y) == 0:
+        raise RuntimeError("Audio is empty")
+
+    peak = float(np.max(np.abs(y)))
+    if peak > 0:
+        y = y / peak
+
+    return y, sr
+
+
+def merge_onset_events(events, merge_sec):
+    """
+    events: list of dict {time, sources:set, raw_notes:list, audio_strength:float}
+    40ms 이하의 사실상 중복 onset만 merge.
+    같은 pitch 반복을 75ms 단위로 합치는 기존 방식은 제거.
+    """
+    if not events:
+        return []
+
+    events = sorted(events, key=lambda e: e["time"])
+    merged = []
+
+    for ev in events:
+        if not merged:
+            merged.append(ev)
+            continue
+
+        last = merged[-1]
+        if ev["time"] - last["time"] <= merge_sec:
+            # 더 강한 raw/audio evidence가 있는 쪽의 시간을 우선
+            last_raw_count = len(last.get("raw_notes", []))
+            ev_raw_count = len(ev.get("raw_notes", []))
+
+            if ev_raw_count > last_raw_count:
+                last["time"] = ev["time"]
+
+            last["sources"] = set(last["sources"]) | set(ev["sources"])
+            last["raw_notes"].extend(ev.get("raw_notes", []))
+            last["audio_strength"] = max(float(last.get("audio_strength", 0.0)), float(ev.get("audio_strength", 0.0)))
+        else:
+            merged.append(ev)
+
+    return merged
+
+
+def extract_audio_onsets_and_strength(y, sr):
+    import librosa
+
+    hop_length = 256
+
+    try:
+        y_harm, y_perc = librosa.effects.hpss(y)
+        y_for_onset = 0.65 * y_harm + 0.35 * y_perc
+    except Exception:
+        y_for_onset = y
+
+    onset_env = librosa.onset.onset_strength(
+        y=y_for_onset,
+        sr=sr,
+        hop_length=hop_length,
+        aggregate=np.median,
+        fmax=2200,
+    )
+
+    frames = librosa.onset.onset_detect(
+        onset_envelope=onset_env,
+        sr=sr,
+        hop_length=hop_length,
+        units="frames",
+        backtrack=True,
+        pre_max=3,
+        post_max=3,
+        pre_avg=7,
+        post_avg=7,
+        delta=0.055,
+        wait=1,
+    )
+
+    times = librosa.frames_to_time(frames, sr=sr, hop_length=hop_length)
+
+    if len(onset_env) > 0:
+        env = onset_env.astype(float)
+        lo = np.percentile(env, 10)
+        hi = np.percentile(env, 95)
+        denom = max(1e-9, hi - lo)
+        norm_env = np.clip((env - lo) / denom, 0.0, 1.0)
+    else:
+        norm_env = onset_env
+
+    strengths = []
+    for t in times:
+        frame = int(round(t * sr / hop_length))
+        frame = max(0, min(len(norm_env) - 1, frame))
+        strengths.append(float(norm_env[frame]))
+
+    return list(times), strengths, onset_env, hop_length
+
+
+def build_onset_union(audio_times, audio_strengths, raw_notes, duration, merge_sec):
+    events = []
+
+    # audio onset events
+    for t, s in zip(audio_times, audio_strengths):
+        if 0 <= t < duration:
+            events.append(
+                {
+                    "time": float(t),
+                    "sources": {"audio"},
+                    "raw_notes": [],
+                    "audio_strength": float(s),
+                }
+            )
+
+    # Basic Pitch raw note starts를 onset 후보에 반드시 포함
+    for n in raw_notes:
+        t = float(n["start"])
+        if 0 <= t < duration:
+            events.append(
+                {
+                    "time": t,
+                    "sources": {"raw"},
+                    "raw_notes": [n],
+                    "audio_strength": 0.0,
+                }
+            )
+
+    return merge_onset_events(events, merge_sec)
+
+
+def build_cqt(y, sr):
+    import librosa
+
+    hop_length = 256
+    fmin = librosa.note_to_hz("C1")
+    n_bins = 72
+
+    C = np.abs(
+        librosa.cqt(
+            y=y,
+            sr=sr,
+            hop_length=hop_length,
+            fmin=fmin,
+            n_bins=n_bins,
+            bins_per_octave=12,
+        )
+    )
+
+    C = np.log1p(10.0 * C)
+    return C, hop_length, 24
+
+
+def cqt_energy(C, hop_length, sr, cqt_base_midi, midi_pitch, start, end):
+    bin_idx = int(round(midi_pitch - cqt_base_midi))
+    if bin_idx < 0 or bin_idx >= C.shape[0]:
+        return 0.0
+
+    a = max(0, int(start * sr / hop_length))
+    b = min(C.shape[1], int(end * sr / hop_length) + 1)
+
+    if b <= a:
+        return 0.0
+
+    return float(np.median(C[bin_idx, a:b]))
+
+
+def harmonic_score(C, hop_length, sr, cqt_base_midi, pitch, start, end, min_midi, max_midi, prev_pitch=None):
+    if pitch < min_midi or pitch > max_midi:
+        return -9999.0
+
+    win_start = max(0.0, start + 0.010)
+    win_end = max(win_start + 0.055, min(end, start + 0.240))
+
+    e0 = cqt_energy(C, hop_length, sr, cqt_base_midi, pitch, win_start, win_end)
+    e12 = cqt_energy(C, hop_length, sr, cqt_base_midi, pitch + 12, win_start, win_end)
+    e19 = cqt_energy(C, hop_length, sr, cqt_base_midi, pitch + 19, win_start, win_end)
+    e24 = cqt_energy(C, hop_length, sr, cqt_base_midi, pitch + 24, win_start, win_end)
+
+    score = e0 + 0.58 * e12 + 0.30 * e19 + 0.18 * e24
+
+    if prev_pitch is not None:
+        jump = abs(pitch - prev_pitch)
+        if jump > 12:
+            score -= 0.16 * (jump - 12)
+        elif jump > 7:
+            score -= 0.045 * (jump - 7)
+
+    return float(score)
+
+
+def find_nearby_raw_notes(raw_notes, t, window_sec):
+    out = []
+
+    for n in raw_notes:
+        start_dist = abs(float(n["start"]) - t)
+        covers = float(n["start"]) - 0.035 <= t <= float(n["end"]) + 0.030
+
+        if start_dist <= window_sec or covers:
+            out.append(n)
+
+    out.sort(key=lambda n: (abs(float(n["start"]) - t), -int(n["velocity"])))
+    return out[:10]
+
+
+def choose_pitch(event, note_end, raw_notes, C, cqt_hop, sr, cqt_base_midi, min_midi, max_midi, prev_pitch, candidate_window):
+    t = float(event["time"])
+
+    nearby = list(event.get("raw_notes", []))
+    extra = find_nearby_raw_notes(raw_notes, t, candidate_window)
+
+    # 중복 제거
+    seen = set()
+    merged_nearby = []
+    for n in nearby + extra:
+        key = (round(float(n["start"]), 4), int(n["pitch"]), round(float(n["end"]), 4))
+        if key not in seen:
+            seen.add(key)
+            merged_nearby.append(n)
+
+    nearby = merged_nearby
+
+    candidate_pitches = set()
+
+    for n in nearby:
+        p = int(n["pitch"])
+
+        # v3: 전체 CQT 재탐색 금지.
+        # Basic Pitch 후보 주변의 octave correction만 수행.
+        for q in [p - 24, p - 12, p, p + 12]:
+            if min_midi <= q <= max_midi:
+                candidate_pitches.add(q)
+
+    # raw 후보가 없으면 함부로 새 pitch를 만들지 않음
+    if not candidate_pitches:
+        if prev_pitch is not None and "audio" in event["sources"] and float(event.get("audio_strength", 0.0)) >= 0.55:
+            candidate_pitches.add(prev_pitch)
+        else:
+            return None, None, nearby, [], "skip_no_raw_candidate"
+
+    scored = []
+
+    for p in sorted(candidate_pitches):
+        s = harmonic_score(
+            C,
+            cqt_hop,
+            sr,
+            cqt_base_midi,
+            p,
+            t,
+            note_end,
+            min_midi,
+            max_midi,
+            prev_pitch=prev_pitch,
+        )
+
+        # Raw 후보를 기본 신뢰하되, p-12/p-24도 허용
+        for n in nearby:
+            raw_p = int(n["pitch"])
+            v = int(n["velocity"]) / 127.0
+
+            if p == raw_p:
+                s += 0.18 * v
+            elif p == raw_p - 12:
+                s += 0.13 * v
+            elif p == raw_p - 24:
+                s += 0.09 * v
+            elif p == raw_p + 12:
+                s += 0.04 * v
+
+        scored.append((s, p))
+
+    scored.sort(reverse=True)
+    best_score, best_pitch = scored[0]
+
+    return best_pitch, best_score, nearby, scored[:8], "raw_candidate_plus_cqt_octave"
+
+
+def compute_velocity(event, nearby):
+    audio_strength = float(event.get("audio_strength", 0.0))
+
+    if nearby:
+        raw_vel = float(np.median([int(n["velocity"]) for n in nearby]))
+    else:
+        raw_vel = 58.0
+
+    # audio strength를 velocity 42~112 범위로 변환
+    audio_vel = 42.0 + audio_strength * 70.0
+
+    # raw velocity를 더 많이 반영
+    vel = 0.58 * raw_vel + 0.42 * audio_vel
+
+    # 너무 평평하지 않게 약간 compression
+    vel = 64.0 + 0.82 * (vel - 64.0)
+
+    return int(round(clamp(vel, 38, 114)))
+
+
+def create_hybrid_midi(input_audio, raw_midi_path, output_midi, output_dir, args):
+    import pretty_midi
+
+    y, sr = load_audio(input_audio)
+    duration = len(y) / sr
+
+    raw_midi_path = run_basic_pitch(input_audio, output_dir, requested_raw_midi_path=raw_midi_path)
+    raw_notes = extract_midi_notes(raw_midi_path, min_raw_velocity=args.min_raw_velocity)
+
+    eprint(f"Basic Pitch raw notes after velocity filter: {len(raw_notes)}")
+
+    audio_times, audio_strengths, onset_env, onset_hop = extract_audio_onsets_and_strength(y, sr)
+    eprint(f"Audio onsets: {len(audio_times)}")
+
+    onset_events = build_onset_union(
+        audio_times=audio_times,
+        audio_strengths=audio_strengths,
+        raw_notes=raw_notes,
+        duration=duration,
+        merge_sec=args.onset_merge_sec,
+    )
+
+    eprint(f"Union onset events: {len(onset_events)}")
+
+    C, cqt_hop, cqt_base_midi = build_cqt(y, sr)
+
+    final_notes = []
+    debug_rows = []
+
+    prev_pitch = None
+
+    for i, ev in enumerate(onset_events):
+        t = float(ev["time"])
+
+        if i + 1 < len(onset_events):
+            next_t = float(onset_events[i + 1]["time"])
+            note_end = max(t + args.min_note_sec, next_t - args.note_end_gap_sec)
+        else:
+            note_end = duration
+
+        if note_end <= t:
+            continue
+
+        pitch, score, nearby, top_scores, reason = choose_pitch(
+            event=ev,
+            note_end=note_end,
+            raw_notes=raw_notes,
+            C=C,
+            cqt_hop=cqt_hop,
+            sr=sr,
+            cqt_base_midi=cqt_base_midi,
+            min_midi=args.min_midi,
+            max_midi=args.max_midi,
+            prev_pitch=prev_pitch,
+            candidate_window=args.candidate_window_sec,
+        )
+
+        if pitch is None:
+            debug_rows.append(
+                {
+                    "time": round(t, 6),
+                    "end": round(note_end, 6),
+                    "sources": "+".join(sorted(ev["sources"])),
+                    "audio_strength": round(float(ev.get("audio_strength", 0.0)), 6),
+                    "chosen_pitch": "",
+                    "chosen_note": "",
+                    "velocity": "",
+                    "score": "",
+                    "reason": reason,
+                    "nearby_raw": json.dumps([]),
+                    "top_scores": json.dumps([]),
+                }
+            )
+            continue
+
+        velocity = compute_velocity(ev, nearby)
+
+        # v3: 같은 pitch 반복 merge 금지.
+        # 단, 물리적으로 겹치면 바로 앞 note end만 다음 note 직전으로 자름.
+        if final_notes and final_notes[-1]["end"] > t - args.note_end_gap_sec:
+            final_notes[-1]["end"] = max(
+                final_notes[-1]["start"] + args.min_note_sec,
+                t - args.note_end_gap_sec,
+            )
+
+        final_notes.append(
+            {
+                "start": t,
+                "end": note_end,
+                "pitch": int(pitch),
+                "velocity": int(velocity),
+            }
+        )
+
+        debug_rows.append(
+            {
+                "time": round(t, 6),
+                "end": round(note_end, 6),
+                "sources": "+".join(sorted(ev["sources"])),
+                "audio_strength": round(float(ev.get("audio_strength", 0.0)), 6),
+                "chosen_pitch": int(pitch),
+                "chosen_note": midi_to_name(int(pitch)),
+                "velocity": int(velocity),
+                "score": round(float(score), 6),
+                "reason": reason,
+                "nearby_raw": json.dumps(
+                    [
+                        {
+                            "start": round(float(n["start"]), 4),
+                            "end": round(float(n["end"]), 4),
+                            "pitch": int(n["pitch"]),
+                            "note": midi_to_name(int(n["pitch"])),
+                            "velocity": int(n["velocity"]),
+                        }
+                        for n in nearby[:6]
+                    ]
+                ),
+                "top_scores": json.dumps(
+                    [(round(float(s), 4), int(p), midi_to_name(int(p))) for s, p in top_scores]
+                ),
+            }
+        )
+
+        prev_pitch = int(pitch)
+
+    final_notes = [n for n in final_notes if n["end"] - n["start"] >= args.min_note_sec]
+
+    pm = pretty_midi.PrettyMIDI()
+
+    try:
+        program = pretty_midi.instrument_name_to_program("Electric Bass (finger)")
+    except Exception:
+        program = 33
+
+    inst = pretty_midi.Instrument(program=program, name="Bass Hybrid v3")
+
+    for n in final_notes:
+        inst.notes.append(
+            pretty_midi.Note(
+                velocity=int(n["velocity"]),
+                pitch=int(n["pitch"]),
+                start=float(n["start"]),
+                end=float(n["end"]),
+            )
+        )
+
+    pm.instruments.append(inst)
+    pm.write(str(output_midi))
+
+    # v4 pitch validation:
+    # 생성된 bass_hybrid.mid를 원본 오디오와 다시 비교해서 octave / wrong pitch를 보정한다.
+    try:
+        script_dir = Path(__file__).resolve().parent
+        if str(script_dir) not in sys.path:
+            sys.path.insert(0, str(script_dir))
+
+        from bass_pitch_validator import audit_and_repair_audio_midi
+
+        audit_and_repair_audio_midi(
+            audio_path=input_audio,
+            midi_in=output_midi,
+            midi_out=output_midi,
+            output_dir=output_dir,
+            min_midi=args.min_midi,
+            max_midi=args.max_midi,
+        )
+        eprint("Pitch validation finished")
+        # v5 post refine:
+        # 원본 오디오와 bass_candidates.csv를 다시 비교해서 ghost note 제거 + pitch 재선택
+        try:
+            from bass_post_refine import post_refine
+
+            post_refine(
+                audio_path=input_audio,
+                midi_in=output_midi,
+                midi_out=output_midi,
+                output_dir=output_dir,
+                min_midi=args.min_midi,
+                # eval 하니스 실측: 52(E3) 고정 상한이 실제 B3/A3 같은 정답 노트를
+                # 후보에서 아예 배제시켜 회귀를 유발함. 전체 파이프라인 상한과 통일.
+                max_midi=args.max_midi,
+            )
+            eprint("Post refine finished")
+            # v5.1 stable pitch guard:
+            # 노트 삭제 없이, 확실한 octave error만 보수적으로 보정
+            try:
+                from bass_stable_pitch_guard import stable_pitch_guard
+
+                stable_pitch_guard(
+                    audio_path=input_audio,
+                    midi_in=output_midi,
+                    midi_out=output_midi,
+                    output_dir=output_dir,
+                    min_midi=args.min_midi,
+                    max_midi=args.max_midi,
+                )
+                eprint("Stable pitch guard finished")
+                # v5.2 octave anchor:
+                # 노트 삭제 없이 E2→E1 같은 확실한 octave error만 안정화
+                try:
+                    from bass_octave_anchor import octave_anchor
+
+                    octave_anchor(
+                        audio_path=input_audio,
+                        midi_in=output_midi,
+                        midi_out=output_midi,
+                        output_dir=output_dir,
+                        min_midi=args.min_midi,
+                        max_midi=args.max_midi,
+                    )
+                    eprint("Octave anchor finished")
+
+                    # v7 octave final:
+                    # 지금까지 여러 스테이지가 산발적으로 판단한 옥타브를
+                    # 마지막에 한 번, 같은 pitch class의 유효한 모든 옥타브
+                    # 후보를 놓고 harmonic score argmax로 정리한다.
+                    # eval 하니스 실측(bass_test.mid 1284 notes): 99.92% 정확 —
+                    # 남은 유일한 오차는 구조적으로 불가능한 폴리포니 겹침 케이스.
+                    try:
+                        from bass_octave_final import octave_final
+
+                        octave_final(
+                            audio_path=input_audio,
+                            midi_in=output_midi,
+                            midi_out=output_midi,
+                            output_dir=output_dir,
+                            min_midi=args.min_midi,
+                            max_midi=args.max_midi,
+                        )
+                        eprint("Octave final finished")
+
+                        # v8 duration trim:
+                        # note.end이 실제 오디오 감쇠와 무관하게 "다음 onset
+                        # 직전"으로만 정해지는 문제를 보정. 줄이기만 하고
+                        # 늘리거나 노트를 합치지 않음(fragmentation과 무관).
+                        try:
+                            from bass_duration_trim import duration_trim
+
+                            duration_trim(
+                                audio_path=input_audio,
+                                midi_in=output_midi,
+                                midi_out=output_midi,
+                                output_dir=output_dir,
+                            )
+                            eprint("Duration trim finished")
+
+                            # v9 fragment merge (학습 기반):
+                            # 인접한 같은 pitch 노트 쌍이 진짜 재타격인지
+                            # 지속음이 잘못 쪼개진 것인지 4개 정답곡으로 학습한
+                            # 분류기로 판단해서 후자만 합침. RMS attack 고정
+                            # 규칙(v1, 실패)과 달리 레가토 반복음은 보존하도록
+                            # 학습됨. eval 하니스: bass_test F1 0.9358->0.9581.
+                            try:
+                                from bass_fragment_merge_v2 import fragment_merge_v2
+
+                                fragment_merge_v2(
+                                    audio_path=input_audio,
+                                    midi_in=output_midi,
+                                    midi_out=output_midi,
+                                    output_dir=output_dir,
+                                )
+                                eprint("Fragment merge finished")
+                            except Exception as exc:
+                                eprint("Warning: fragment merge failed:", exc)
+                        except Exception as exc:
+                            eprint("Warning: duration trim failed:", exc)
+                    except Exception as exc:
+                        eprint("Warning: octave final failed:", exc)
+                except Exception as exc:
+                    eprint("Warning: octave anchor failed:", exc)
+            except Exception as exc:
+                eprint("Warning: stable pitch guard failed:", exc)
+            # v6 sequence refine:
+            # pYIN octave validator + Viterbi smoothing + sustain 재계산
+            try:
+                from bass_sequence_refine import sequence_refine
+
+                sequence_refine(
+                    audio_path=input_audio,
+                    midi_in=output_midi,
+                    midi_out=output_midi,
+                    output_dir=output_dir,
+                    min_midi=args.min_midi,
+                    max_midi=min(args.max_midi, 52),
+                )
+                eprint("Sequence refine finished")
+            except Exception as exc:
+                eprint("Warning: sequence refine failed:", exc)
+        except Exception as exc:
+            eprint("Warning: post refine failed:", exc)
+    except Exception as exc:
+        eprint("Warning: pitch validation failed:", exc)
+
+    # 항상 보기 쉬운 이름으로도 저장
+    debug_raw = output_dir / "bass_basicpitch_raw.mid"
+    if debug_raw.exists():
+        pass
+
+    # final notes csv
+    final_csv = output_dir / "bass_final_notes.csv"
+    with final_csv.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["start", "end", "duration", "pitch", "note", "velocity"],
+        )
+        writer.writeheader()
+
+        for n in final_notes:
+            writer.writerow(
+                {
+                    "start": round(float(n["start"]), 6),
+                    "end": round(float(n["end"]), 6),
+                    "duration": round(float(n["end"] - n["start"]), 6),
+                    "pitch": int(n["pitch"]),
+                    "note": midi_to_name(int(n["pitch"])),
+                    "velocity": int(n["velocity"]),
+                }
+            )
+
+    # debug candidates csv
+    candidates_csv = output_dir / "bass_candidates.csv"
+    with candidates_csv.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "time",
+                "end",
+                "sources",
+                "audio_strength",
+                "chosen_pitch",
+                "chosen_note",
+                "velocity",
+                "score",
+                "reason",
+                "nearby_raw",
+                "top_scores",
+            ],
+        )
+        writer.writeheader()
+
+        for row in debug_rows:
+            writer.writerow(row)
+
+    # onset union json
+    onset_json = output_dir / "bass_onsets_union.json"
+    simple_events = []
+    for ev in onset_events:
+        simple_events.append(
+            {
+                "time": float(ev["time"]),
+                "sources": sorted(list(ev["sources"])),
+                "audio_strength": float(ev.get("audio_strength", 0.0)),
+                "raw_note_count": len(ev.get("raw_notes", [])),
+            }
+        )
+
+    onset_json.write_text(json.dumps(simple_events, indent=2), encoding="utf-8")
+
+    eprint(f"Saved hybrid MIDI: {output_midi}")
+    eprint(f"Saved raw MIDI copy: {output_dir / 'bass_basicpitch_raw.mid'}")
+    eprint(f"Saved final notes: {final_csv}")
+    eprint(f"Saved candidates: {candidates_csv}")
+    eprint(f"Saved onset union: {onset_json}")
+    eprint(f"Final notes: {len(final_notes)}")
+
+    return output_midi
+
+
+def main():
+    args = parse_args()
+    input_audio, raw_midi_path, output_midi, output_dir = resolve_paths(args)
+
+    eprint(f"Input audio: {input_audio}")
+    eprint(f"Raw MIDI path: {raw_midi_path}")
+    eprint(f"Output MIDI: {output_midi}")
+    eprint(f"Output dir: {output_dir}")
+
+    create_hybrid_midi(input_audio, raw_midi_path, output_midi, output_dir, args)
+
+
+if __name__ == "__main__":
+    main()

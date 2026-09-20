@@ -1,0 +1,864 @@
+#!/usr/bin/env python3
+"""
+학습된 분류기(bass_fragment_merge_model.joblib)로 인접한 같은 pitch 노트
+쌍이 진짜 재타격인지, 지속음이 잘못 쪼개진 것인지 판단해서 후자만 합친다.
+
+배경: RMS attack 유무만으로 판단하는 고정 규칙(bass_fragment_merge.py, v1)은
+bass_test.mid에서 레가토/해머온 반복음까지 잘못 합쳐서(missed 10->108) 폐기됐다.
+v2는 4개 정답 곡(bass_test/bass_sample/bass_sample2/bass_sample3)의 실제
+"정답에 이 순간 진짜 onset이 있는가"를 라벨로 학습한 분류기를 쓴다.
+
+검증(eval/train_fragment_classifier.py): bass_test 홀드아웃에서 진짜 노트를
+지워버리는 사고가 거의 없음(위험한 오류 최소화 쪽으로 학습됨). 다른 곡에서도
+기존 RMS 방식과 비슷하거나 더 나음. 노트를 삭제/추가하지 않고 병합만 한다.
+"""
+import argparse
+import csv
+import sys
+from pathlib import Path
+
+import numpy as np
+
+MAX_GAP_SEC = 0.10
+
+
+def eprint(*args):
+    print(*args, file=sys.stderr, flush=True)
+
+
+def midi_to_name(midi_note: int) -> str:
+    names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    return f"{names[midi_note % 12]}{midi_note // 12 - 1}"
+
+
+def load_audio(audio_path):
+    import librosa
+
+    y, sr = librosa.load(str(audio_path), sr=22050, mono=True)
+    if len(y) == 0:
+        raise RuntimeError("Empty audio")
+    peak = float(np.max(np.abs(y)))
+    if peak > 0:
+        y = y / peak
+    return y, sr
+
+
+def build_cqt(y, sr):
+    import librosa
+
+    hop = 256
+    base_midi = 24
+    C = np.abs(
+        librosa.cqt(
+            y=y, sr=sr, hop_length=hop, fmin=librosa.note_to_hz("C1"),
+            n_bins=72, bins_per_octave=12,
+        )
+    )
+    C = np.log1p(10.0 * C)
+    return C, hop, base_midi
+
+
+def cqt_at(C, hop, sr, base_midi, pitch, t0, t1):
+    idx = int(round(pitch - base_midi))
+    if idx < 0 or idx >= C.shape[0]:
+        return 0.0
+    a = max(0, int(t0 * sr / hop))
+    b = min(C.shape[1], int(t1 * sr / hop) + 1)
+    if b <= a:
+        return 0.0
+    return float(np.median(C[idx, a:b]))
+
+
+def build_rms(y, sr):
+    import librosa
+
+    hop = 256
+    rms = librosa.feature.rms(y=y, hop_length=hop, frame_length=1024)[0]
+    return rms, hop
+
+
+def rms_window(rms, hop, sr, t0, t1, fn):
+    a = max(0, int(t0 * sr / hop))
+    b = min(len(rms), int(t1 * sr / hop) + 1)
+    if b <= a:
+        return 0.0
+    return float(fn(rms[a:b]))
+
+
+def build_onset_env(y, sr):
+    import librosa
+
+    hop = 256
+    try:
+        y_harm, y_perc = librosa.effects.hpss(y)
+        y_for = 0.65 * y_harm + 0.35 * y_perc
+    except Exception:
+        y_for = y
+    env = librosa.onset.onset_strength(y=y_for, sr=sr, hop_length=hop, aggregate=np.median, fmax=2200)
+    return env, hop
+
+
+def onset_env_at(env, hop, sr, t):
+    idx = int(round(t * sr / hop))
+    idx = max(0, min(len(env) - 1, idx))
+    return float(env[idx])
+
+
+def read_midi_notes(midi_path):
+    import pretty_midi
+
+    pm = pretty_midi.PrettyMIDI(str(midi_path))
+    inst = None
+    for candidate in pm.instruments:
+        if not candidate.is_drum:
+            inst = candidate
+            break
+    if inst is None:
+        return pm, None, []
+    inst.notes.sort(key=lambda n: (n.start, n.pitch))
+    return pm, inst, inst.notes
+
+
+def boundary_features(y, sr, C, cqt_hop, base_midi, rms, rms_hop, onset_env, onset_hop, a_note, b_note):
+    a_start, a_end, a_pitch, a_vel = a_note.start, a_note.end, a_note.pitch, a_note.velocity
+    b_start, b_end, b_pitch, b_vel = b_note.start, b_note.end, b_note.pitch, b_note.velocity
+
+    gap = b_start - a_end
+    boundary = b_start
+
+    pre_short_min = rms_window(rms, rms_hop, sr, boundary - 0.05, boundary - 0.005, np.min)
+    post_short_max = rms_window(rms, rms_hop, sr, boundary + 0.005, boundary + 0.03, np.max)
+    pre_long_min = rms_window(rms, rms_hop, sr, boundary - 0.15, boundary - 0.005, np.min)
+    post_long_max = rms_window(rms, rms_hop, sr, boundary + 0.005, boundary + 0.08, np.max)
+
+    rms_ratio_short = post_short_max / pre_short_min if pre_short_min > 1e-6 else (10.0 if post_short_max > 1e-6 else 1.0)
+    rms_ratio_long = post_long_max / pre_long_min if pre_long_min > 1e-6 else (10.0 if post_long_max > 1e-6 else 1.0)
+
+    cqt_pre = cqt_at(C, cqt_hop, sr, base_midi, a_pitch, boundary - 0.1, boundary - 0.01)
+    cqt_post = cqt_at(C, cqt_hop, sr, base_midi, a_pitch, boundary + 0.01, boundary + 0.1)
+    cqt_ratio = cqt_post / cqt_pre if cqt_pre > 1e-6 else (10.0 if cqt_post > 1e-6 else 1.0)
+
+    onset_strength = onset_env_at(onset_env, onset_hop, sr, boundary)
+
+    dur_a = a_end - a_start
+    dur_b = b_end - b_start
+    vel_ratio = b_vel / a_vel if a_vel > 0 else 1.0
+
+    return {
+        "gap": gap,
+        "dur_a": dur_a,
+        "dur_b": dur_b,
+        "dur_ratio": dur_b / dur_a if dur_a > 0 else 1.0,
+        "vel_a": a_vel,
+        "vel_b": b_vel,
+        "vel_ratio": vel_ratio,
+        "rms_pre_short": pre_short_min,
+        "rms_post_short": post_short_max,
+        "rms_ratio_short": rms_ratio_short,
+        "rms_pre_long": pre_long_min,
+        "rms_post_long": post_long_max,
+        "rms_ratio_long": rms_ratio_long,
+        "cqt_pre": cqt_pre,
+        "cqt_post": cqt_post,
+        "cqt_ratio": cqt_ratio,
+        "onset_strength": onset_strength,
+        "pitch": a_pitch,
+    }
+
+
+def fragment_merge_v2(audio_path, midi_in, midi_out, output_dir, model_path=None):
+    import joblib
+    import pandas as pd
+
+    audio_path = Path(audio_path)
+    midi_in = Path(midi_in)
+    midi_out = Path(midi_out)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if model_path is None:
+        model_path = Path(__file__).resolve().parent / "bass_fragment_merge_model.joblib"
+
+    bundle = joblib.load(model_path)
+    clf = bundle["model"]
+    feature_cols = bundle["feature_cols"]
+
+    from bass_audio_cache import cqt_c1_72, load_audio_22050, onset_env_hpss
+
+    y, sr = load_audio_22050(audio_path, output_dir)
+    C, cqt_hop, base_midi = cqt_c1_72(y, sr, output_dir)
+    rms, rms_hop = build_rms(y, sr)
+    onset_env, onset_hop = onset_env_hpss(y, sr, output_dir)
+
+    # 물리 규칙용 정규화 온셋 envelope (실녹음 Bass_2 실측으로 추가, 2026-07-10):
+    # VST 6곡으로 학습된 분류기가 실녹음에서 진짜 쪼개짐 22건을 전부
+    # keep_separate로 오판함 (RMS 피처 분포가 실녹음에서 어긋남).
+    # 재타격이라면 반드시 있어야 할 온셋 트랜지언트가 경계에 전혀 없으면
+    # (정규화 피크 < 0.25; 실측 분포: 쪼개짐 그룹 최대 0.24 vs 재타격 그룹
+    # 최소 0.32로 자연 간극 존재) 같은 노트가 쪼개진 것으로 보고 병합한다.
+    #
+    # 단, octave_final_v2의 파일 투표가 실녹음(trust_pyin)으로 판정한 파일
+    # 에서만 켠다: VST 렌더는 레가토 반복음이 온셋 없이도 별개 노트가 맞아서
+    # 규칙을 전역 적용하면 bass_test가 회귀함 (F1 0.9596→0.9583, missed
+    # 8→24 실측). 투표 파일이 없으면 규칙 끔 (기존 모델 동작으로 fail-safe).
+    no_onset_rule_enabled = False
+    vote_path = output_dir / "bass_octave_file_vote.json"
+    if vote_path.exists():
+        try:
+            import json as _json
+
+            vote = _json.loads(vote_path.read_text(encoding="utf-8"))
+            no_onset_rule_enabled = vote.get("trust_pyin") is True
+        except Exception as exc:
+            eprint(f"Warning: could not read file vote json: {exc}")
+    eprint(f"Fragment merge no-onset rule: {'ON' if no_onset_rule_enabled else 'OFF'} (file vote)")
+
+    env_lo = float(np.percentile(onset_env, 10))
+    env_hi = float(np.percentile(onset_env, 95))
+    env_scale = max(env_hi - env_lo, 1e-9)
+
+    def onset_peak_near(t, w=0.04):
+        a = max(0, int((t - w) * sr / onset_hop))
+        b = min(len(onset_env), int((t + w) * sr / onset_hop) + 1)
+        if b <= a:
+            return 0.0
+        return float((onset_env[a:b].max() - env_lo) / env_scale)
+
+    def count_attacks(t0, t1, height=0.25):
+        """[t0, t1] 구간의 어택(정규화 온셋 envelope 국소 최대 ≥ height) 개수.
+
+        어택 직전/직후 45~70ms 마이크로 조각용: 경계가 자기 어택의 온셋 창
+        안에 있으면 no_reattack_evidence(경계 피크 < 0.25)로는 못 잡는다.
+        대신 조각 A와 본 노트 B가 어택을 '하나만' 공유하는지(한 타격이
+        쪼개짐) '두 개'인지(진짜 빠른 더블 히트/고스트 — 보존)를 센다.
+        """
+        a = max(1, int(t0 * sr / onset_hop))
+        b = min(len(onset_env) - 1, int(t1 * sr / onset_hop) + 1)
+        n = 0
+        for i in range(a, b):
+            v = (float(onset_env[i]) - env_lo) / env_scale
+            if v >= height and onset_env[i] >= onset_env[i - 1] and onset_env[i] > onset_env[i + 1]:
+                n += 1
+        return n
+
+    def no_reattack_evidence(last_note, next_note):
+        boundary = float(next_note.start)
+        if onset_peak_near(boundary) >= 0.25:
+            return False
+        gap = float(next_note.start) - float(last_note.end)
+        if gap > 0.03:
+            # 간격이 길면 그 사이에 현이 계속 울리고 있는지 확인
+            # (감쇠 후 새로 친 소프트 재타격을 병합하지 않기 위한 가드)
+            gap_min = rms_window(rms, rms_hop, sr, float(last_note.end) + 0.002, boundary - 0.002, np.min)
+            pre_ref = rms_window(rms, rms_hop, sr, boundary - 0.08, boundary - 0.005, np.median)
+            if gap_min is None or pre_ref is None or pre_ref <= 1e-6:
+                return False
+            if gap_min < 0.3 * pre_ref:
+                return False
+        return True
+
+    RULE_MAX_GAP_SEC = 0.12
+
+    pm, inst, notes = read_midi_notes(midi_in)
+    if inst is None or not notes:
+        eprint("No MIDI notes to process")
+        return
+
+    before_count = len(notes)
+    merged = [notes[0]]
+    audit_rows = []
+
+    for note in notes[1:]:
+        last = merged[-1]
+        same_pitch = int(note.pitch) == int(last.pitch)
+        gap = float(note.start) - float(last.end)
+
+        if same_pitch and -0.02 <= gap <= RULE_MAX_GAP_SEC:
+            decision = "keep_separate"
+
+            if gap <= MAX_GAP_SEC:
+                # 학습 분류기는 자기가 학습한 gap 범위 안에서만 판정
+                feats = boundary_features(y, sr, C, cqt_hop, base_midi, rms, rms_hop, onset_env, onset_hop, last, note)
+                row = pd.DataFrame([feats])[feature_cols]
+                pred = int(clf.predict(row)[0])  # 1 = keep_separate, 0 = merge
+                if pred == 0:
+                    decision = "merge"
+
+            ioi = float(note.start) - float(last.start)
+            if decision == "keep_separate" and ioi < 0.06:
+                # 물리 규칙 0 (전 파일 공통, 2026-07-11): 같은 음 재타격 간격
+                # 60ms 미만은 물리적으로 불가능 (최속 트레몰로 60~80ms).
+                # GT 6곡 실측: 동일음 최소 IOI 84ms, <60ms 0건 — 보편 안전.
+                # 실측: Mosquito DI에서 이런 불가능 재타격 17건이
+                # trust_pyin=False 게이트 때문에 정리되지 않고 남았음.
+                decision = "merge_retrigger"
+            elif (
+                decision == "keep_separate"
+                and no_onset_rule_enabled
+                and no_reattack_evidence(last, note)
+            ):
+                # 물리 규칙 1 (trust_pyin 파일 전용 — VST 레가토는 온셋 없이도
+                # 별개 노트가 맞아서 전역 적용 시 bass_test 회귀 실측):
+                # 경계에 온셋 트랜지언트가 전혀 없으면 재타격이 아님
+                decision = "merge_no_onset"
+            elif (
+                decision == "keep_separate"
+                and gap <= 0.05
+                and (float(last.end) - float(last.start)) < 0.08
+                and count_attacks(float(last.start) - 0.025, float(note.start) + 0.045) <= 1
+            ):
+                # 물리 규칙 2 (전 파일 공통으로 승격, 2026-07-11): 어택 인접
+                # 마이크로 조각 — 짧은 조각과 본 노트가 어택을 하나만 공유하면
+                # 한 타격이 쪼개진 것. 어택이 두 개면 진짜 더블 히트이므로
+                # 보존. VST에서는 이런 조각 구조 자체가 드물어 no-op에 가깝고,
+                # 6곡 회귀로 검증.
+                decision = "merge_single_attack"
+
+            audit_rows.append(
+                {
+                    "boundary": round(float(note.start), 6),
+                    "pitch": int(note.pitch),
+                    "note": midi_to_name(int(note.pitch)),
+                    "gap": round(gap, 6),
+                    "prediction": decision,
+                }
+            )
+
+            if decision != "keep_separate":
+                last.end = max(last.end, note.end)
+                last.velocity = max(last.velocity, note.velocity)
+                continue
+
+        merged.append(note)
+
+    inst.notes = merged
+
+    # ------------------------------------------------------------------
+    # 유령 꾸밈음 제거 (전 파일 공통, 2026-07-11 Mosquito DI 실측으로 추가):
+    # 타격 직전의 프렛/손가락 노이즈가 온셋으로 잡혀 본 노트 앞에 80~130ms
+    # 그레이스 노트가 붙고, 그 피치가 전이음/배음/옥타브로 튐 (실측 78쌍,
+    # 반복 패턴: C4→C2 배음 유령 6회, C2→F2 3회, 반음 아래 전이음 등).
+    # 피치가 '다른' 인접 쌍만 대상 — 같은 피치 반복은 재타격 규칙이 다루고,
+    # 같은 피치 짧은 저음은 pYIN 창(93ms)에 한 주기도 안 들어가 판독이
+    # fmin 바닥값(24.0)으로 떨어지는 아티팩트 때문에 증거로 못 씀.
+    # octave 스테이지가 캐시한 C1~C5 pYIN 트랙 재사용 (추가 비용 0).
+    # A(짧은 앞 노트) 창의 pYIN이 다음 중 하나면 A는 가짜:
+    #   1) 무성(voiced<30%) — 노이즈
+    #   2) B의 피치를 읽음 — 본 노트의 소리가 이미 남 (A 라벨이 거짓)
+    #   3) 확실 lock(voiced≥50%)인데 A의 pitch class 자체가 아님
+    #      (fmin 바닥값 24.0 부근 판독은 아티팩트라 제외)
+    #   4) A가 B보다 19반음(배음 간격) 이상 높은데 pYIN이 A를 확인 못 함
+    # ------------------------------------------------------------------
+    ghost_rows = []
+    try:
+        from bass_audio_cache import pyin_track
+
+        _gmidi, _gprob, _ghop = pyin_track(y, sr, "C1", "C5", output_dir, "c1c5")
+
+        def _glock(t0, t1):
+            dur = max(t1 - t0, 1e-6)
+            skip = min(0.03, dur * 0.2)
+            a = max(0, int((t0 + skip) * sr / _ghop))
+            b = min(len(_gmidi), int(t1 * sr / _ghop) + 1)
+            if b <= a:
+                return None, 0.0
+            seg = _gmidi[a:b]
+            valid = np.isfinite(seg)
+            vf = float(valid.sum()) / len(seg)
+            med = float(np.nanmedian(seg[valid])) if valid.any() else None
+            return med, vf
+
+        def _class_dist(med, pitch):
+            d = abs(med - pitch) % 12.0
+            return min(d, 12.0 - d)
+
+        cleaned = []
+        k = 0
+        while k < len(merged):
+            cur = merged[k]
+            nxt = merged[k + 1] if k + 1 < len(merged) else None
+            drop_reason = None
+            if nxt is not None:
+                ioi = float(nxt.start) - float(cur.start)
+                dur_a = float(cur.end) - float(cur.start)
+                if ioi < 0.15 and dur_a < 0.13 and int(cur.pitch) == int(nxt.pitch):
+                    # 같은 피치 약한 예비 타격 (2026-07-12 Mosquito 실측 추가):
+                    # 손가락이 현에 닿는 준비 동작이 본 타격 직전 80~130ms
+                    # 조각으로 잡힘. RMS 피크 비(A/B)가 가짜 그룹 0.08~0.6 vs
+                    # 진짜 더블히트 1.0~1.3으로 깨끗이 갈림 (59쌍 실측).
+                    # VST 동등 벨로시티 반복은 비율 ~1이라 안전.
+                    ra = rms_window(rms, rms_hop, sr, float(cur.start), min(float(cur.end), float(cur.start) + 0.08), np.max)
+                    rb = rms_window(rms, rms_hop, sr, float(nxt.start), float(nxt.start) + 0.08, np.max)
+                    if rb > 1e-6 and ra / rb < 0.62:
+                        drop_reason = "weak_prehit"
+                elif ioi < 0.15 and dur_a < 0.13 and int(cur.pitch) != int(nxt.pitch):
+                    med, vf = _glock(float(cur.start), float(cur.end))
+                    a_ok = med is not None and vf >= 0.5 and abs(med - cur.pitch) <= 0.6
+                    if not a_ok:
+                        if vf < 0.3:
+                            # pYIN 부재는 약한 증거 (짧은 저음 진짜 노트에서도
+                            # 실패 — bass_sample 10.54s 진짜 D#2 삭제 실측).
+                            # CQT로 이중 확인: 자기 피치 bin이 강하게 울리면
+                            # (e0 ≥ 3.2; 실측 진짜 3.60 vs 유령 최대 2.92) 보존.
+                            _e0 = cqt_at(
+                                C, cqt_hop, sr, base_midi, int(cur.pitch),
+                                float(cur.start) + 0.01, float(cur.end),
+                            )
+                            if _e0 < 3.2:
+                                drop_reason = "unvoiced"
+                        elif med is not None and vf >= 0.5 and abs(med - nxt.pitch) <= 0.6:
+                            drop_reason = "b_pitch_rings"
+                        elif (
+                            med is not None and vf >= 0.5 and med > 24.8
+                            and _class_dist(med, int(cur.pitch)) > 0.6
+                        ):
+                            drop_reason = "class_contradiction"
+                        elif int(cur.pitch) - int(nxt.pitch) >= 19:
+                            drop_reason = "harmonic_leap"
+            if drop_reason:
+                ghost_rows.append(
+                    {
+                        "start": round(float(cur.start), 6),
+                        "pitch": int(cur.pitch),
+                        "note": midi_to_name(int(cur.pitch)),
+                        "next_note": midi_to_name(int(nxt.pitch)),
+                        "reason": drop_reason,
+                    }
+                )
+                k += 1
+                continue
+            cleaned.append(cur)
+            k += 1
+        merged = cleaned
+        inst.notes = merged
+    except Exception as exc:
+        eprint(f"Warning: ghost grace removal failed: {exc}")
+
+    if ghost_rows:
+        ghost_csv = output_dir / "bass_ghost_grace_audit.csv"
+        with ghost_csv.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["start", "pitch", "note", "next_note", "reason"])
+            writer.writeheader()
+            for row in ghost_rows:
+                writer.writerow(row)
+    eprint(f"Ghost grace removal: {len(ghost_rows)} notes dropped")
+
+    # ------------------------------------------------------------------
+    # 온셋 스냅 (전 파일 공통으로 승격 2026-07-11, Bass_2 타이밍 실측으로 추가):
+    # 실녹음에서 노트 시작이 실제 어택과 -79~+90ms로 흩어져 "박이 어긋나게"
+    # 들림 (|dev|>50ms 125노트). 원인: (1) onset_detect(backtrack=True)가
+    # 완만한 실녹음 어택에서 로컬 최소점(어택보다 40~80ms 앞)까지 되돌아감
+    # — 즉각 어택인 VST에서는 문제 없던 동작. (2) merge_single_attack이
+    # 어택 전 조각의 시작점을 유지. 각 노트 시작을 주변 어택 피크의
+    # "발치"(피크에서 역방향으로 내려가 25% 교차점)로 스냅해서 분산을 줄인다.
+    # 이웃 노트의 어택이 창에 새어들지 않게 창을 이웃 시작점으로 제한.
+    # ------------------------------------------------------------------
+    snap_rows = []
+    # 스냅 게이트 재설계 (2026-07-12): trust_pyin은 '옥타브 충돌' 투표라
+    # 클린 DI(충돌 0 → False)에서 스냅이 꺼져 계통적 조기 편향이 남음
+    # (실측: 최신 사용자 파일 median -24ms, 30ms 초과 144노트 — "박이 안
+    # 맞는다" 신고의 원인). 파일에서 직접 편향을 측정해 결정한다:
+    # 뚜렷한 어택이 있는 노트들의 (어택 발치 - 노트 시작) 중앙값이 +15ms를
+    # 넘으면 시작들이 계통적으로 이르다 → 스냅 활성. VST는 시작이 이미
+    # 어택에 정렬돼 있어(중앙값 ~0) 자동으로 꺼짐 — trust_pyin 게이트가
+    # 막던 bass_sample 파괴 사례(2.54s E1 소멸)도 그대로 방지된다.
+    SNAP_WINDOW = 0.09
+    SNAP_MIN_DELTA = 0.025
+    SNAP_PEAK_MIN = 0.25
+
+    def env_norm(i):
+        return (float(onset_env[i]) - env_lo) / env_scale
+
+    def snap_target(k, cur):
+        """노트 k의 어택 발치 스냅 목표 시각. 없으면 None."""
+        start = float(cur.start)
+        lo = start - SNAP_WINDOW
+        hi = start + SNAP_WINDOW
+        if k > 0:
+            lo = max(lo, float(merged[k - 1].start) + 0.03)
+        if k + 1 < len(merged):
+            hi = min(hi, float(merged[k + 1].start) - 0.01)
+        a = max(1, int(lo * sr / onset_hop))
+        b = min(len(onset_env) - 1, int(hi * sr / onset_hop) + 1)
+        if b <= a + 1:
+            return None
+        seg_peak_idx = a + int(np.argmax(onset_env[a:b]))
+        if env_norm(seg_peak_idx) < SNAP_PEAK_MIN:
+            return None  # 뚜렷한 어택 없음 (소프트 엔트리)
+        foot_thresh = 0.25 * float(onset_env[seg_peak_idx])
+        foot_idx = seg_peak_idx
+        while foot_idx > a and float(onset_env[foot_idx - 1]) >= foot_thresh:
+            foot_idx -= 1
+        return foot_idx * onset_hop / sr
+
+    # 1패스: 편향 측정
+    _deltas = []
+    for k, cur in enumerate(merged):
+        t = snap_target(k, cur)
+        if t is not None:
+            _deltas.append(t - float(cur.start))
+    _bias = float(np.median(_deltas)) if len(_deltas) >= 30 else 0.0
+    # 문턱 8ms: 게이트는 '어택 발치' 기준이라 피크 기준 진단값보다 ~10ms
+    # 작게 측정됨 (실측: 피크 기준 -24ms 편향 파일이 발치 기준 +14ms).
+    # VST는 발치 기준 0~5ms라 분리 유지.
+    snap_enabled = no_onset_rule_enabled or _bias > 0.008
+    eprint(
+        f"Onset snap gate: bias={_bias*1000:+.0f}ms (n={len(_deltas)}) -> "
+        f"{'ON' if snap_enabled else 'OFF'}"
+    )
+
+    # 계통 편향으로 켜진 파일은 최소 이동 문턱을 낮춘다: 15~24ms 조기
+    # 노트들도 발치로 정렬해야 잔여 편향(-21ms 실측)이 사라짐.
+    _min_delta = 0.012 if (_bias > 0.008 and not no_onset_rule_enabled) else SNAP_MIN_DELTA
+    if snap_enabled:
+        for k, cur in enumerate(merged):
+            start = float(cur.start)
+            snapped = snap_target(k, cur)
+            if snapped is None:
+                continue
+            delta = snapped - start
+            if abs(delta) < _min_delta:
+                continue
+            if not no_onset_rule_enabled and abs(delta) > 0.035:
+                # 편향 보정 모드에서 35ms 초과 이동은 다른 이벤트(에코/이웃
+                # 어택)의 발치로 점프하는 것 — 실측: sample3에서 ±102ms 이동
+                # 57건이 GT 매칭 붕괴(0.58→0.22)의 주범. 계통 편향 보정에는
+                # 15~30ms 이동이면 충분하다.
+                continue
+            if snapped >= float(cur.end) - 0.03:
+                continue  # 노트가 사실상 사라질 만큼 뒤로 밀리면 스킵
+
+            snap_rows.append(
+                {
+                    "old_start": round(start, 6),
+                    "new_start": round(snapped, 6),
+                    "delta_ms": round(delta * 1000),
+                    "pitch": int(cur.pitch),
+                    "note": midi_to_name(int(cur.pitch)),
+                }
+            )
+            cur.start = snapped
+
+        if snap_rows:
+            snap_csv = output_dir / "bass_onset_snap_audit.csv"
+            with snap_csv.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=["old_start", "new_start", "delta_ms", "pitch", "note"])
+                writer.writeheader()
+                for row in snap_rows:
+                    writer.writerow(row)
+    eprint(f"Onset snap: {len(snap_rows)} notes moved")
+
+    # --------------------------------------------------------------
+    # 서스테인 복원 (전 파일 공통으로 승격 2026-07-11, Bass_2 듀레이션 실측):
+    # 노트의 pitch bin CQT 에너지가 note.end 이후에도 어택 피크의 25%
+    # 이상으로 '연속' 유지되는데 끝이 일찍 잘린 노트 32건 실측 (150~200ms
+    # 일찍 끊기는 일반 노트 + 실제로는 0.3s+ 울리는 45ms 스텁). 연속 울림
+    # 구간 끝(또는 다음 노트 직전)까지 연장한다. 연장 구간에 새 어택이
+    # 있으면 다음 타격을 삼키는 것이므로 중단. duration_trim(줄이기만 함)
+    # 이후에 실행되는 스테이지라 여기서 복원해야 함.
+    # --------------------------------------------------------------
+    RESTORE_MIN_EXT = 0.08
+    RESTORE_RATIO = 0.25
+    restore_rows = []
+    for k, cur in enumerate(merged):
+        pidx = int(cur.pitch) - base_midi
+        if not (0 <= pidx < C.shape[0]):
+            continue
+        next_start = float(merged[k + 1].start) if k + 1 < len(merged) else float(cur.end) + 2.0
+        cap = min(next_start - 0.02, float(cur.end) + 1.5)
+        if cap - float(cur.end) < RESTORE_MIN_EXT:
+            continue
+        fa = int(float(cur.start) * sr / cqt_hop)
+        fe = int(float(cur.end) * sr / cqt_hop)
+        fcap = min(C.shape[1], int(cap * sr / cqt_hop))
+        if fe <= fa + 2 or fcap <= fe:
+            continue
+        peak_v = float(C[pidx, fa:min(fe, fa + 8)].max())
+        if peak_v < 0.5:
+            continue
+        thresh = RESTORE_RATIO * peak_v
+        run = 0
+        for i in range(fe, fcap):
+            if float(C[pidx, i]) >= thresh:
+                run += 1
+            else:
+                break
+        ext = run * cqt_hop / sr
+        if ext < RESTORE_MIN_EXT:
+            continue
+        new_end = min(float(cur.end) + ext, cap)
+        # 확장 구간의 약한 잡음 피크(≥0.25)로는 차단하지 않지만 (실측:
+        # 32건 중 30건을 막았음), '강한' 어택(≥0.6)은 전사가 놓친 실제
+        # 재타격일 수 있으므로 그 직전에서 연장을 멈춘다. 실측: 40.07s의
+        # 같은 음(E1) 재타격이 노트로 안 살아남았는데, 같은 pitch bin
+        # 에너지가 이어져 복원이 어택 위로 163ms 연장해버린 사례.
+        # 스캔 시작을 노트 시작+80ms 이후로: 45ms 스텁은 끝+10ms 지점에
+        # 자기 어택의 피크 꼬리가 걸려서 연장이 즉시 잘리는 것을 실측
+        # (복원 29건 → 5건 급감, 잘린 24건 전부 스텁).
+        a_att = max(1, int(max(float(cur.end) + 0.01, float(cur.start) + 0.08) * sr / onset_hop))
+        b_att = min(len(onset_env) - 1, int(new_end * sr / onset_hop) + 1)
+        for i in range(a_att, b_att):
+            v = (float(onset_env[i]) - env_lo) / env_scale
+            if v >= 0.6 and onset_env[i] >= onset_env[i - 1] and onset_env[i] > onset_env[i + 1]:
+                new_end = max(float(cur.end), i * onset_hop / sr - 0.02)
+                break
+        if new_end - float(cur.end) < RESTORE_MIN_EXT:
+            continue
+        restore_rows.append(
+            {
+                "start": round(float(cur.start), 6),
+                "old_end": round(float(cur.end), 6),
+                "new_end": round(new_end, 6),
+                "ext_ms": round((new_end - float(cur.end)) * 1000),
+                "pitch": int(cur.pitch),
+                "note": midi_to_name(int(cur.pitch)),
+            }
+        )
+        cur.end = new_end
+
+    if restore_rows:
+        restore_csv = output_dir / "bass_sustain_restore_audit.csv"
+        with restore_csv.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f, fieldnames=["start", "old_end", "new_end", "ext_ms", "pitch", "note"]
+            )
+            writer.writeheader()
+            for row in restore_rows:
+                writer.writerow(row)
+    eprint(f"Sustain restore: {len(restore_rows)} notes extended")
+
+    # --------------------------------------------------------------
+    # 누락 타격 복구 (전 파일 공통, 2026-07-12 "원본 오디오 검증 보완" 요청):
+    # 오디오에 강한 어택(정규화 온셋 국소최대 ≥0.5)이 있는데 ±70ms 안에
+    # 노트 시작이 없으면 상류가 놓친 타격. pYIN(캐시된 C1~C5 트랙)이
+    # 어택 직후 구간에서 세미톤에 확실히 잠길 때만(voiced≥0.5, ±0.35)
+    # 그 피치로 노트를 추가한다 — 증거 이중 요구로 오탐 방지. 끝은 CQT
+    # 감쇠점 또는 다음 노트 직전. 실측 배경: sample3/5의 missed 127~190건,
+    # 사용자 "생성이 여전히 불안정, 원본과 너무 다름".
+    # --------------------------------------------------------------
+    recovered_rows = []
+    try:
+        import pretty_midi as _pm_mod2
+
+        # 파일 단위 pYIN 신뢰도 실측 게이트: 기존 노트들에서 pYIN lock과
+        # 확정 피치(분류기 산출)의 class 일치율을 잰다. 일치율이 낮은
+        # 파일(예: sample3 — 역사적으로 모든 피치 추정기가 실패하는 톤)은
+        # pYIN이 '새 노트의 피치를 발명'할 자격이 없음. 실측: sample3 복구
+        # 90건 중 81건 오답(F1 -0.03), sample5는 61건 중 43건 정답(+0.04)
+        # — 노트 단위 판별자(어택 강도/BP raw/직전 거리)는 전부 분리 실패,
+        # 파일 단위 신뢰도만이 두 파일을 가름.
+        _lock_n, _lock_match = 0, 0
+        for n in merged:
+            if float(n.end) - float(n.start) < 0.12:
+                continue
+            _m, _v = _glock(float(n.start), float(n.end))
+            if _m is None or _v < 0.5:
+                continue
+            _lock_n += 1
+            if _class_dist(_m, int(n.pitch)) <= 0.6:
+                _lock_match += 1
+            if _lock_n >= 200:
+                break
+        _pyin_agree = _lock_match / _lock_n if _lock_n >= 20 else 0.0
+        eprint(f"Recovery gate: pyin-note agreement {_pyin_agree:.2f} ({_lock_match}/{_lock_n})")
+        if _pyin_agree < 0.8:
+            raise RuntimeError(f"file pyin agreement too low ({_pyin_agree:.2f}) — recovery skipped")
+
+        note_starts = np.array([float(n.start) for n in merged])
+        # 강한 어택 후보 수집
+        _cand_attacks = []
+        for i in range(1, len(onset_env) - 1):
+            v = (float(onset_env[i]) - env_lo) / env_scale
+            if v >= 0.5 and onset_env[i] >= onset_env[i - 1] and onset_env[i] > onset_env[i + 1]:
+                _cand_attacks.append((i * onset_hop / sr, v))
+
+        for ai, (att_t, att_v) in enumerate(_cand_attacks):
+            if len(note_starts) and float(np.min(np.abs(note_starts - att_t))) < 0.07:
+                continue  # 이미 노트 있음
+            # pYIN 창을 다음 어택 직전까지로 캡: 빠른 패시지에서 창이 다음
+            # 노트에 걸치면 피치 median이 뭉개져 오답 복구가 됨 (실측:
+            # sample3의 최고 밀도 구간 160~180s에 오답 37건 집중). 캡 후
+            # 창이 60ms 미만이면 피치를 특정할 수 없으므로 복구하지 않음.
+            w_hi = att_t + 0.17
+            if ai + 1 < len(_cand_attacks):
+                w_hi = min(w_hi, _cand_attacks[ai + 1][0] - 0.01)
+            nxt_note_after = [s for s in note_starts if s > att_t]
+            if nxt_note_after:
+                w_hi = min(w_hi, nxt_note_after[0] - 0.01)
+            if w_hi - att_t < 0.06:
+                continue
+            med, vf = _glock(att_t + 0.01, w_hi)
+            if med is None or vf < 0.5:
+                continue
+            target = int(round(med))
+            if abs(med - target) > 0.35 or not (28 <= target <= 60):
+                continue
+            # 끝: 다음 노트 시작 직전 또는 CQT 감쇠점, 최대 0.8s
+            nxt_after = [s for s in note_starts if s > att_t]
+            cap = min(nxt_after[0] - 0.01 if nxt_after else att_t + 0.8, att_t + 0.8)
+            if cap - att_t < 0.06:
+                continue
+            pidx = target - base_midi
+            end_t = cap
+            if 0 <= pidx < C.shape[0]:
+                fa = int(att_t * sr / cqt_hop)
+                fcap = min(C.shape[1], int(cap * sr / cqt_hop))
+                if fcap > fa + 3:
+                    seg = C[pidx, fa:fcap]
+                    peak_v = float(seg[: max(3, int(0.08 * sr / cqt_hop))].max())
+                    if peak_v > 0.3:
+                        below = np.nonzero(seg < 0.25 * peak_v)[0]
+                        if len(below):
+                            end_t = min(cap, fa * cqt_hop / sr + float(below[0]) * cqt_hop / sr)
+            if end_t - att_t < 0.06:
+                continue
+            new_note = _pm_mod2.Note(velocity=70, pitch=target, start=att_t, end=end_t)
+            merged.append(new_note)
+            note_starts = np.append(note_starts, att_t)
+            recovered_rows.append(
+                {
+                    "start": round(att_t, 6),
+                    "end": round(end_t, 6),
+                    "pitch": target,
+                    "note": midi_to_name(target),
+                    "attack": round(att_v, 2),
+                    "pyin_med": round(med, 2),
+                }
+            )
+
+        if recovered_rows:
+            merged.sort(key=lambda n: (float(n.start), int(n.pitch)))
+            inst.notes = merged
+            rec_csv = output_dir / "bass_missed_recovery_audit.csv"
+            with rec_csv.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(
+                    f, fieldnames=["start", "end", "pitch", "note", "attack", "pyin_med"]
+                )
+                writer.writeheader()
+                for row in recovered_rows:
+                    writer.writerow(row)
+    except Exception as exc:
+        eprint(f"Warning: missed recovery failed: {exc}")
+    eprint(f"Missed attack recovery: {len(recovered_rows)} notes added")
+
+    # --------------------------------------------------------------
+    # 모노포니 겹침 정리: 베이스는 단선율인데 생성 노트가 겹치는 경우가
+    # 있음 (실측: B1 스텁이 뒤 D2와 -20~-93ms 겹침, 7.08s/24.02s/29.66s
+    # 등 — 상류의 중복 온셋 쌍에서 유래). 겹치면 앞 노트 끝을 뒤 노트
+    # 시작 직전으로 다듬는다 (노트 삭제 없음, 끝만 줄임).
+    # (누락 복구로 삽입된 노트와 기존 노트의 겹침도 여기서 정리됨.)
+    # --------------------------------------------------------------
+    overlap_fixed = 0
+    for k in range(len(merged) - 1):
+        cur, nxt = merged[k], merged[k + 1]
+        if float(cur.end) > float(nxt.start) + 0.003:
+            would_sliver = (float(nxt.start) - 0.002) - float(cur.start) < 0.03
+            keep_front = False
+            if would_sliver and int(cur.pitch) != int(nxt.pitch) and float(cur.end) + 0.02 < float(nxt.end):
+                # 앞 노트를 자르면 조각이 되는 경우, 겹침 직후 구간에서
+                # 어느 피치가 실제로 울리는지 CQT로 판정한다. 두 노트가
+                # 어택 하나를 공유하면(20ms 간격, 온셋으로 구분 불가) 이게
+                # 유일한 판별자. (실측: 패턴상 정당한 B1이 잘못 앞당겨진
+                # D2와의 겹침 트림으로 소멸하던 케이스)
+                t0 = float(nxt.start) + 0.01
+                t1 = min(float(cur.end), t0 + 0.07)
+                if t1 > t0:
+                    e_cur = cqt_at(C, cqt_hop, sr, base_midi, int(cur.pitch), t0, t1)
+                    e_nxt = cqt_at(C, cqt_hop, sr, base_midi, int(nxt.pitch), t0, t1)
+                    if e_cur > e_nxt * 1.2:
+                        keep_front = True
+            if keep_front:
+                # 앞 노트가 진짜 — 뒤 노트 시작을 앞 노트 끝으로 민다
+                nxt.start = float(cur.end) + 0.002
+            else:
+                cur.end = max(float(nxt.start) - 0.002, float(cur.start) + 0.02)
+            overlap_fixed += 1
+    # 트림 부산물 정리: 30ms 미만 조각은 파이프라인 최소 노트 길이(45ms)
+    # 미만의 잔해로, 들리지 않으면서 피아노롤만 지저분하게 함 (실측 23개).
+    # 노트 삭제라 리콜 위험이 있어 trust_pyin 파일 전용 유지.
+    dropped_slivers = 0
+    if no_onset_rule_enabled:
+        before_sliver = len(merged)
+        merged = [n for n in merged if float(n.end) - float(n.start) >= 0.03]
+        inst.notes = merged
+        dropped_slivers = before_sliver - len(merged)
+    eprint(
+        f"Monophony overlap trim: {overlap_fixed} notes trimmed, "
+        f"{dropped_slivers} slivers dropped"
+    )
+
+    # ------------------------------------------------------------------
+    # 오디오 어택 에너지 → 벨로시티 매핑 (전 파일 공통, 2026-07-12):
+    # Basic Pitch 유래 벨로시티는 실녹음에서 사실상 평탄해(std ~7) 사람이
+    # 연주한 다이나믹스가 사라짐 ("사람 바이브가 없다" 신고의 주범).
+    # 각 노트의 어택 RMS 피크를 파일 내 백분위 순위로 정규화(컴프레서/게인
+    # 무관)해서 32~108로 매핑. F1은 velocity를 채점하지 않으므로 GT 점수
+    # 무영향, 재생 느낌만 개선.
+    # ------------------------------------------------------------------
+    try:
+        # 첫 버전(백분위 순위 → 32~108 강제 분산)은 실패: 실제 다이나믹스가
+        # 고른 연주에서도 미세한 RMS 차이를 풀 레인지로 증폭시켜 몇몇 노트가
+        # 뚝 떨어지게 들림 (사용자 실측 신고). 재설계: dB 스케일에서 파일의
+        # 실측 다이나믹 레인지(p10~p95)를 그대로 보존해 52~104로 매핑.
+        # 레인지가 좁은(평탄한 연주/VST) 파일은 최소 6dB 분모로 눌러서
+        # 벨로시티도 평탄하게 유지된다 — 실제 연주 느낌 = 실제 강약만 반영.
+        attack_rms = np.array([
+            rms_window(rms, rms_hop, sr, float(n.start), float(n.start) + 0.12, np.max)
+            for n in merged
+        ])
+        if len(attack_rms) >= 8 and float(attack_rms.max()) > 1e-6:
+            db = 20.0 * np.log10(np.maximum(attack_rms, 1e-6))
+            p10, p95 = float(np.percentile(db, 10)), float(np.percentile(db, 95))
+            span = max(p95 - p10, 6.0)
+            norm = np.clip((db - p10) / span, 0.0, 1.0)
+            vels = 52 + 52 * norm
+            for n, v in zip(merged, vels):
+                n.velocity = int(round(float(v)))
+            eprint(
+                f"Velocity from audio: {len(merged)} notes mapped "
+                f"(dB range {p95 - p10:.1f}, vel std {float(np.std(vels)):.1f})"
+            )
+        else:
+            eprint("Velocity from audio: skipped (too few notes)")
+    except Exception as exc:
+        eprint(f"Warning: velocity mapping failed: {exc}")
+
+    pm.write(str(midi_out))
+
+    audit_csv = output_dir / "bass_fragment_merge_v2_audit.csv"
+    with audit_csv.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["boundary", "pitch", "note", "gap", "prediction"])
+        writer.writeheader()
+        for row in audit_rows:
+            writer.writerow(row)
+
+    merged_count = sum(1 for r in audit_rows if r["prediction"] == "merge")
+    eprint(f"Fragment merge v2: {before_count} -> {len(merged)} notes ({merged_count} merges)")
+    eprint(f"Saved audit: {audit_csv}")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("audio")
+    parser.add_argument("midi_in")
+    parser.add_argument("midi_out")
+    parser.add_argument("--output-dir", default=None)
+    parser.add_argument("--model-path", default=None)
+    args = parser.parse_args()
+
+    audio = Path(args.audio).expanduser().resolve()
+    midi_in = Path(args.midi_in).expanduser().resolve()
+    midi_out = Path(args.midi_out).expanduser().resolve()
+    output_dir = Path(args.output_dir).expanduser().resolve() if args.output_dir else midi_out.parent
+
+    fragment_merge_v2(
+        audio_path=audio,
+        midi_in=midi_in,
+        midi_out=midi_out,
+        output_dir=output_dir,
+        model_path=args.model_path,
+    )
+
+
+if __name__ == "__main__":
+    main()
