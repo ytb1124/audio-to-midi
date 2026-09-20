@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Midi } from "@tonejs/midi";
 import * as Tone from "tone";
+import {
+  desktopAssetUrl,
+  isDesktopRuntime,
+  runDesktopSeparation,
+  runDesktopTranscription,
+} from "./lib/desktop-backend";
 
 type ModeType = "piano" | "bass" | "drums" | "general";
 type Language = "en" | "ko";
@@ -100,6 +106,9 @@ type StemWaveformPeak = {
 type StemWaveformPeaks = Partial<Record<StemName, StemWaveformPeak[]>>;
 
 const BASE_PIXELS_PER_BEAT = 48;
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"
+).replace(/\/$/, "");
 const PIANO_KEY_WIDTH = 124;
 const BASE_NOTE_ROW_HEIGHT = 18;
 const RULER_HEIGHT = 28;
@@ -1836,7 +1845,7 @@ export default function Home() {
   async function pollStemMidiJob(stemName: StemName, jobId: string) {
     const pollInterval = window.setInterval(async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/jobs/${jobId}`);
+        const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`);
         if (!response.ok) {
           throw new Error("Stem MIDI job polling failed.");
         }
@@ -1895,13 +1904,36 @@ export default function Home() {
         stemUrl,
         getFileNameFromUrl(stemUrl)
       );
+
+      if (isDesktopRuntime()) {
+        const mode = stemName === "drums" ? "drums" : "bass";
+        const result = await runDesktopTranscription(audioFile, mode, (progress, status) => {
+          updateStemMidiConversion(stemName, {
+            progress,
+            status: getMidiConversionStatus(stemName, status),
+          });
+        });
+
+        updateStemMidiConversion(stemName, {
+          isProcessing: false,
+          progress: 100,
+          status: copy.stemMidiReady,
+          result: {
+            midiUrl: desktopAssetUrl(result.midiPath),
+            midiFileName: result.midiFileName,
+            mode,
+          },
+        });
+        return;
+      }
+
       const formData = new FormData();
       formData.append("file", audioFile);
 
       const endpoint =
         stemName === "drums"
-          ? "http://localhost:8000/api/drums"
-          : "http://localhost:8000/api/transcribe";
+          ? `${API_BASE_URL}/api/drums`
+          : `${API_BASE_URL}/api/transcribe`;
 
       if (stemName === "drums") {
         formData.append("separate", "false");
@@ -1945,7 +1977,7 @@ export default function Home() {
 
   async function pollJob(jobId: string, uploadMode: ModeType) {
     const pollInterval = window.setInterval(async () => {
-      const response = await fetch(`http://localhost:8000/api/jobs/${jobId}`);
+      const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`);
       const job = await response.json();
 
       setProcessingProgress(job.progress ?? 0);
@@ -1983,7 +2015,7 @@ export default function Home() {
   async function pollStemJob(jobId: string) {
     const pollInterval = window.setInterval(async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/jobs/${jobId}`);
+        const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`);
         if (!response.ok) {
           throw new Error("Stem job polling failed.");
         }
@@ -2052,6 +2084,38 @@ export default function Home() {
     stemJobStartedAtRef.current = getCurrentTimeMs();
     stemAudioDurationRef.current = null;
 
+    if (isDesktopRuntime()) {
+      try {
+        const result = await runDesktopSeparation(file, (progress, status) => {
+          setStemProgress(progress);
+          setStemStatus(status || copy.separatingStems);
+        });
+
+        setStemResult({
+          mode: "separate",
+          model: result.model,
+          device: result.device,
+          stems: Object.fromEntries(
+            Object.entries(result.stems).map(([stemName, stemPath]) => [
+              stemName,
+              desktopAssetUrl(stemPath),
+            ])
+          ) as Partial<Record<StemName, string>>,
+        });
+        setStemProgress(100);
+        setStemStatus(copy.openStemMixer);
+        setIsSeparatingStems(false);
+        setIsStemMixerOpen(true);
+      } catch (error) {
+        console.error(error);
+        setIsSeparatingStems(false);
+        setStemStatus(
+          error instanceof Error ? error.message : copy.stemConnectionError
+        );
+      }
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("model", "htdemucs");
@@ -2061,7 +2125,7 @@ export default function Home() {
       stemAudioDurationRef.current = audioDurationSeconds;
       setStemEstimateSeconds(estimateStemSeparationSeconds(audioDurationSeconds));
 
-      const response = await fetch("http://localhost:8000/api/separate", {
+      const response = await fetch(`${API_BASE_URL}/api/separate`, {
         method: "POST",
         body: formData,
       });
@@ -2097,14 +2161,39 @@ export default function Home() {
     setProcessingProgress(0);
     setProcessingStatus(copy.uploadingAudio);
 
+    if (isDesktopRuntime()) {
+      try {
+        const result = await runDesktopTranscription(file, uploadMode, (progress, status) => {
+          setProcessingProgress(progress);
+          setProcessingStatus(status || copy.processing);
+        });
+
+        setProcessingStatus(copy.loadingGeneratedMidi);
+        await loadMidiFromUrl(
+          desktopAssetUrl(result.midiPath),
+          result.midiFileName
+        );
+        setProcessingProgress(100);
+        setProcessingStatus(copy.complete);
+      } catch (error) {
+        console.error(error);
+        setProcessingStatus(
+          error instanceof Error ? error.message : copy.backendError
+        );
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
     try {
       const endpoint =
         uploadMode === "drums"
-          ? "http://localhost:8000/api/drums"
-          : "http://localhost:8000/api/transcribe";
+          ? `${API_BASE_URL}/api/drums`
+          : `${API_BASE_URL}/api/transcribe`;
 
       if (uploadMode === "drums") {
         formData.append("separate", "false");

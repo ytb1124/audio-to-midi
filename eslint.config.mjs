@@ -11,6 +11,10 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "dist/**",
+    "packaging/build/**",
+    "packaging/dist/**",
+    "src-tauri/target/**",
     "next-env.d.ts",
     // Non-frontend workspaces and generated job data:
     ".venv-backend/**",
