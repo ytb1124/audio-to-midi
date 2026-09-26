@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Trackform
 
-## Getting Started
+An audio-to-MIDI workspace for turning recorded musical ideas into editable performance material.
 
-First, run the development server:
+Trackform combines automatic music transcription, stem separation, MIDI editing, and browser playback in one workflow. The browser interface runs as a Next.js application; the processing layer is a FastAPI service that calls specialist transcription models. The same processing pipeline can be packaged as a local Tauri desktop application for offline-oriented work.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## What it does
+
+- Upload an audio file and choose a transcription mode.
+- Piano transcription with Transkun and an audio-guided sustain repair pass.
+- General transcription with Basic Pitch.
+- Bass transcription with a Basic Pitch and audio-timing hybrid pass.
+- Drum transcription with optional stem separation and drum-focused processing.
+- Full stem separation through Demucs, with selectable model and device reporting.
+- Preview and edit the generated MIDI in a piano-roll workspace.
+- Move, resize, select, and audition MIDI notes with Tone.js instruments.
+- Export generated MIDI files for continued work in a DAW or notation program.
+
+## Project structure
+
+```text
+app/                    Next.js interface and MIDI editor
+backend/main.py         FastAPI upload, job, and progress API
+backend/pipeline.py     Shared transcription and separation pipeline
+eval/                   Evaluation and diagnostic scripts
+packaging/              PyInstaller sidecar configuration
+src-tauri/              Tauri desktop shell and local backend bridge
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The web API exposes three jobs:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/transcribe` | Piano, bass, drums, or general MIDI conversion |
+| `POST /api/separate` | Demucs stem separation |
+| `POST /api/drums` | Drum-focused conversion with optional separation |
+| `GET /api/jobs/{job_id}` | Progress and result polling |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Local development
 
-## Learn More
+### Web interface
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The interface runs at `http://localhost:3000`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Python backend
 
-## Deploy on Vercel
+Create a Python environment, install the pinned working dependencies, and start FastAPI:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+python -m venv .venv-backend
+source .venv-backend/bin/activate
+pip install -r backend/requirements-working.txt
+uvicorn backend.main:app --reload --port 8000
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The browser expects the API at `http://localhost:8000` by default. Set `NEXT_PUBLIC_API_BASE_URL` when the backend runs elsewhere. For a non-local deployment, set `ALLOWED_ORIGINS` and `PUBLIC_BASE_URL` explicitly.
+
+### Desktop build
+
+The Tauri build packages the Python service as a sidecar. Build that sidecar first, then run the desktop shell:
+
+```bash
+npm run sidecar:build
+npm run tauri:dev
+```
+
+The desktop bridge reports transcription progress through Tauri events and keeps generated files local to the job.
+
+## Design decisions
+
+Piano mode uses Transkun because the current workflow preserves piano sustain and timing more reliably than the general-purpose path. General mode remains based on Basic Pitch, while bass and drum paths add instrument-specific processing. These paths are intentionally separate so that a change to one instrument does not silently change the others.
+
+The editor is deliberately usable after transcription: a generated MIDI file is loaded into the piano roll, where notes can be inspected, corrected, auditioned, and exported. This keeps the system assistive rather than treating the first model output as a finished arrangement.
+
+## Current scope
+
+This is an active research and production prototype. Transcription quality depends on the source recording, instrument mix, model, and local compute environment. The evaluation scripts under `eval/` document ongoing diagnostics; they are not a claim of uniform accuracy across every genre or arrangement.
+
+## License
+
+No license has been selected yet. Until one is added, the repository should be treated as all rights reserved.
