@@ -4,7 +4,10 @@
   --input-root DIR --set-name NAME   (DIR/<song>/mix.wav, for sets not in manifest)
 Output: eval/heldout/runs/_sep_alt/<model>/<set>/<song>/{bass,drums}.wav + stems.json
 """
-import argparse, json, os, sys, time, shutil, tempfile, traceback
+import os
+for _v in ('OMP_NUM_THREADS','MKL_NUM_THREADS'):
+    os.environ.setdefault(_v, '2')
+import argparse, json, sys, time, shutil, tempfile, traceback
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -138,6 +141,8 @@ def main():
     if not todo:
         return
     import soundfile as sf
+    import torch
+    torch.set_num_threads(2)
     spec = MODELS[a.model]
     device = pick_device(a.device)
     cls = MSSTSep if spec["backend"] == "msst" else DemucsSep

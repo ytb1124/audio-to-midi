@@ -45,8 +45,13 @@ OUT = HERE / "data" / "slakh_realbass"
 # 한 라이브러리의 어택 특성이 결론을 좌우하지 않도록 어택이 빠른 업라이트로도 같은 곡을 렌더링한다.
 SETS = {"slakh_realbass": "electric", "slakh_realbass_up": "upright",
         # R7 전용(벤드 곡선이 정확한 정답): 개발 = train 벤드곡, 테스트 = bendtest 20곡. 베이스 단독만 쓴다.
-        "dev_bends_up": "upright", "bendtest_up": "upright"}
-SRC_OF = {"dev_bends_up": ROOT / "data" / "raw" / "slakh_train", "bendtest_up": HERE / "data" / "_raw" / "slakh"}
+        "dev_bends_up": "upright", "bendtest_up": "upright",
+        # 베이스 후처리 개발셋: Slakh train, 테스트와 다른 일렉 라이브러리(Black-and-Blue babyblue).
+        # 이 라이브러리의 파일 이름은 실제 음보다 한 옥타브 높다(pYIN 실측) — 인덱스에서 −12 보정.
+        "dev_realbass": "electric_dev"}
+SRC_OF = {"dev_bends_up": ROOT / "data" / "raw" / "slakh_train", "bendtest_up": HERE / "data" / "_raw" / "slakh",
+          "dev_realbass": ROOT / "data" / "raw" / "slakh_train"}
+BASS_ONLY = {"dev_bends_up", "bendtest_up"}
 
 
 def load_samples() -> dict:
@@ -96,7 +101,7 @@ def render_note(sample: dict, pitch: int, dur: float, bend_fn, start: float) -> 
 def build_song(song: str, bank: dict, set_name: str = "slakh_realbass") -> dict:
     forced = SETS[set_name]
     src = SRC_OF.get(set_name, HERE / "data" / "_raw" / "slakh") / song / "all_src.mid"
-    sep = HERE / "runs" / "_sep" / "slakh" / song
+    sep = HERE / "runs" / "_sep" / ("slakh_train" if set_name == "dev_realbass" else "slakh") / song
     pm = pretty_midi.PrettyMIDI(str(src))
     length = int((WIN[1] - WIN[0]) * SR)
     bass = np.zeros(length + SR, np.float32)
@@ -150,7 +155,7 @@ def build_song(song: str, bank: dict, set_name: str = "slakh_realbass") -> dict:
     out = HERE / "data" / set_name / song
     out.mkdir(parents=True, exist_ok=True)
     cur_rms = float(np.sqrt(np.mean(bass ** 2))) or 1.0
-    if set_name in SRC_OF:  # R7 전용: 베이스 단독, −20 dBFS RMS
+    if set_name in BASS_ONLY:  # R7 전용: 베이스 단독, −20 dBFS RMS
         bass *= 0.1 / cur_rms
         bass = np.clip(bass, -0.99, 0.99)
     else:
@@ -195,6 +200,8 @@ def main() -> int:
     man = json.loads(man_path.read_text())
     if set_name == "dev_bends_up":
         songs = json.loads((HERE / "data" / "dev_bends.json").read_text())
+    elif set_name == "dev_realbass":
+        songs = sorted(p.name for p in (HERE / "runs" / "_sep" / "slakh_train").iterdir() if (p / "stems.json").exists())[:30]
     elif set_name == "bendtest_up":
         songs = [i["song"] for i in json.loads((HERE / "data" / "bendtest_manifest.json").read_text())]
     else:

@@ -10,10 +10,12 @@ Trackform combines automatic music transcription, stem separation, MIDI editing,
 - Piano transcription with Transkun and an audio-guided sustain repair pass.
 - General transcription with Basic Pitch, or YourMT3+ as an optional backend.
 - Bass transcription with a Basic Pitch and audio-timing hybrid pass, or YourMT3+ as an optional backend.
-- Drum transcription on a separated drum stem with ADTOF, with velocity taken from attack loudness. The in-house E-GMD classifier remains as a fallback and as an option.
+- Drum transcription on a separated drum stem with ADTOF, with velocity taken from each drum class's own frequency band. The in-house E-GMD classifier remains as a fallback and as an option.
+- Optional beat grid: Beat This! tracks beats and downbeats, the MIDI file gets a per-beat tempo map and time signature, and notes can be pulled toward a 16th-note grid with an adjustable strength (default 0, so note times stay as played).
+- Optional bass pitch bends: slides and bends are written as MIDI pitch bend (±2 semitones) from the pYIN pitch curve, only where the pitch actually moves.
 - Full stem separation through Demucs, with selectable model and device reporting.
 - Preview and edit the generated MIDI in a piano-roll workspace.
-- Move, resize, select, and audition MIDI notes with Tone.js instruments.
+- Move, resize, select, and audition MIDI notes with built-in sampled instruments that work offline: grand piano (4 velocity layers), electric and upright bass, acoustic drum kit, electric piano, strings and pad. Pitch bends are drawn on the notes and played back.
 - Export generated MIDI files for continued work in a DAW or notation program.
 
 ## Project structure
@@ -46,6 +48,16 @@ The web API exposes these jobs:
 | `drums` | `adtof`, `egmd` | `adtof` |
 
 The result reports the engine that actually ran as `backend`. If an optional model is not installed, the job falls back to the built-in engine (`basicpitch` or `egmd`) instead of failing.
+
+Optional post-processing fields (omit them and the output is unchanged):
+
+| Field | Values | Applies to |
+| --- | --- | --- |
+| `beatGrid` | `true` / `false` (default) | `/api/transcribe`, `/api/drums` |
+| `quantize` | `0`–`1`, default `0` | with `beatGrid` |
+| `pitchBend` | `true` / `false` (default) | `/api/transcribe` with `mode=bass` |
+
+The full contract, including the result fields, is in `CLAUDE.md`.
 
 ## Local development
 
@@ -91,7 +103,11 @@ npm run tauri:dev     # development window
 npm run tauri:build   # .app and .dmg under src-tauri/target/release/bundle/
 ```
 
-The desktop bridge reports transcription progress through Tauri events and keeps generated files local to the job. The sidecar bundles Transkun, Basic Pitch, HT-Demucs and the in-house classifiers. It does not bundle the optional YourMT3+ and ADTOF environments, so **the desktop app transcribes drums with the E-GMD classifier**.
+The desktop bridge reports transcription progress through Tauri events and keeps generated files local to the job. The sidecar bundles Transkun, Basic Pitch, HT-Demucs, Beat This! and the in-house classifiers. ADTOF ships as a second bundled worker (`packaging/trackform-adtof.spec`, built from `.venv-adtof`), so the desktop app uses the same default drum model as the web backend. YourMT3+ is not bundled; it is optional and not a default.
+
+```bash
+.venv-adtof/bin/python -m PyInstaller packaging/trackform-adtof.spec --noconfirm --clean --distpath dist --workpath packaging/build
+```
 
 Prebuilt macOS (Apple Silicon) builds are attached to [GitHub Releases](https://github.com/ytb1124/audio-to-midi/releases). They are not code-signed. On first launch, right-click the app and choose **Open**.
 
@@ -106,15 +122,20 @@ The held-out benchmark (`eval/heldout/`) uses public data that none of the compa
 
 Every system is measured on the same path: HT-Demucs separation, then transcription. Scores are per-song mean F1 at 50 ms onset tolerance. Brackets show the 95% bootstrap interval of the per-song difference from the previous default.
 
-| Task | Previous default | Best tested | Change |
+Version 0.3.0 adds a real-bass test: the same Slakh bass parts re-rendered with recorded electric and upright bass samples (CC0), mixed with the original accompaniment.
+
+| Task | Default | Best alternative tested | Result |
 | --- | --- | --- | --- |
-| Drums, real recordings (MDB) | E-GMD classifier 0.546 | **ADTOF on drum stem 0.859** | +0.31 [+0.25, +0.38] |
-| Drums, rendered (Slakh) | E-GMD classifier 0.663 | YourMT3+ on full mix 0.806 | +0.14 [+0.06, +0.22] |
-| Bass, rendered (Slakh, pitch-class F1) | Basic Pitch + hybrid 0.574 | YourMT3+ on full mix 0.850 | +0.28 [+0.20, +0.36] |
+| Drums, real recordings (MDB) | ADTOF on HT-Demucs stem 0.859 | SCNet-XL stem → ADTOF 0.870 | +0.011 [−0.002, +0.026], kept HT-Demucs |
+| Bass, real-bass renders (electric / upright) | Basic Pitch + hybrid 0.287 / 0.480 | YourMT3+ on the stem 0.101 / 0.252 | −0.19 / −0.23, kept the hybrid |
+| Bass, Slakh rendering | Basic Pitch + hybrid 0.582 | YourMT3+ on the stem 0.733 | +0.15, but the lead reverses on real bass |
+| Beats (Slakh, 18 songs) | — (librosa fallback 0.809) | **Beat This! 0.927** | +0.118 [+0.033, +0.220] |
+| Drum velocity (Spearman ρ) | attack loudness 0.330 | **per-class band energy 0.620** | +0.290 [+0.152, +0.429] |
+| Bass pitch bends (bent-note F1) | none | **pYIN 0.813** | CREPE 0.748, RMVPE 0.526 |
 
-Drums now default to ADTOF because its lead holds on real recordings; cymbal F1 rose from 0.00 to 0.68. YourMT3+ leads on rendered audio but falls to 0.636 on real drum recordings. Bass keeps its current default until a real-recording bass test set exists. YourMT3+ was trained on Slakh's train split, which favours it on the Slakh test songs.
+YourMT3+ was trained on Slakh's training split. Fed the separated bass stem, its lead on Slakh rendering did not carry over to recorded bass; fed the full mix, it led on all three bass sets (+0.17 to +0.27), which points to a separate full-song bass route. The bass hybrid's post-processing, which looked neutral on Slakh, gains +0.11 to +0.14 over raw Basic Pitch on recorded bass.
 
-Full tables, scoring rules and reproduction commands are in [`eval/heldout/RESULTS_HELDOUT.md`](eval/heldout/RESULTS_HELDOUT.md). The next drum experiment is planned in [`eval/ADTOF_FINETUNE_PLAN.md`](eval/ADTOF_FINETUNE_PLAN.md).
+Every candidate, its confidence interval, the comparison with published results, and why the search stopped are in [`eval/BEST_RESULTS.md`](eval/BEST_RESULTS.md). The earlier tables are in [`eval/heldout/RESULTS_HELDOUT.md`](eval/heldout/RESULTS_HELDOUT.md).
 
 ## Design decisions
 
@@ -126,10 +147,10 @@ The editor is deliberately usable after transcription: a generated MIDI file is 
 
 This is an active research prototype. Transcription quality depends on the source recording, instrument mix, model, and local compute environment. The benchmark above covers a limited set of public recordings; it is not a claim of uniform accuracy across every genre or arrangement. Known gaps:
 
-- There is no real-recording bass test set yet.
+- The bass test uses real recorded single notes re-rendered from MIDI, not full real performances; a MIDI-pickup recording set does not exist yet.
 - ADTOF outputs five drum classes, so it does not separate open and closed hi-hat, or crash and ride.
-- Velocity is mapped from attack loudness but has not been validated against reference velocities.
-- Pitch bends are not exported.
+- The ADTOF fine-tuning experiment (`eval/ADTOF_FINETUNE_PLAN.md`) was not run: its rehearsal dataset is available on request only.
+- Editor sample sources and licenses are listed in `public/samples/LICENSES.md`.
 
 ## License
 

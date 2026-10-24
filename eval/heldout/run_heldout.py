@@ -53,7 +53,7 @@ import score_drums  # noqa: E402
 BASS_SYSTEMS = ["stem_basicpitch", "stem_bpraw", "stem_yourmt3", "stem_yourmt3_hyb", "mix_yourmt3"]
 DRUM_SYSTEMS = ["stem_egmd", "stem_adtof", "mix_egmd", "mix_adtof", "mix_yourmt3"]
 BASELINE = {"bass": "stem_basicpitch", "drums": "stem_egmd"}
-BASS_SETS = ["slakh", "slakh_realbass", "slakh_realbass_up"]
+BASS_SETS = ["slakh", "slakh_realbass", "slakh_realbass_up", "dev_realbass"]  # dev_realbass = 튜닝 전용(Slakh train)
 DRUM_SETS = ["slakh", "mdb"]
 # rescore용: 시스템별 결과 MIDI 파일 이름(런 디렉터리 안)
 OUTPUT_NAME = {
