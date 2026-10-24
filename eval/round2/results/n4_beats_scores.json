@@ -1,0 +1,354 @@
+{
+  "summary": {
+    "beat_this": {
+      "beat_f_all": 0.8339087808761161,
+      "beat_f_clean": 0.9265653120845734,
+      "downbeat_f_clean": 0.8784731495783074
+    },
+    "beat_this_casm": {
+      "beat_f_all": 0.8380263792328073,
+      "beat_f_clean": 0.9311404213697858,
+      "downbeat_f_clean": 0.8585074795104469
+    },
+    "madmom": {
+      "beat_f_all": 0.7847649755954781,
+      "beat_f_clean": 0.8719610839949756,
+      "downbeat_f_clean": 0.7926334422657952
+    },
+    "librosa": {
+      "beat_f_all": 0.7420052008035825,
+      "beat_f_clean": 0.8090359649262668,
+      "downbeat_f_clean": 0.31365829516679494
+    }
+  },
+  "per_song": {
+    "beat_this": {
+      "Track01876": {
+        "beat_f": 0.9886363636363636,
+        "downbeat_f": 0.9333333333333332
+      },
+      "Track01877": {
+        "beat_f": 0.8351648351648352,
+        "downbeat_f": 0.8615384615384616
+      },
+      "Track01880": {
+        "beat_f": 0.9938271604938271,
+        "downbeat_f": 0.975609756097561
+      },
+      "Track01881": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01882": {
+        "beat_f": 0.9940119760479043,
+        "downbeat_f": 1.0
+      },
+      "Track01883": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01884": {
+        "beat_f": 0.9934640522875817,
+        "downbeat_f": 1.0
+      },
+      "Track01887": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01888": {
+        "beat_f": 0.9936305732484078,
+        "downbeat_f": 1.0
+      },
+      "Track01892": {
+        "beat_f": 0.9965397923875432,
+        "downbeat_f": 0.9863013698630138
+      },
+      "Track01893": {
+        "beat_f": 1.0,
+        "downbeat_f": 0.8181818181818181
+      },
+      "Track01895": {
+        "beat_f": 0.0,
+        "downbeat_f": 0.0
+      },
+      "Track01898": {
+        "beat_f": 0.9822485207100593,
+        "downbeat_f": 0.8378378378378378
+      },
+      "Track01899": {
+        "beat_f": 0.9957081545064378,
+        "downbeat_f": 1.0
+      },
+      "Track01900": {
+        "beat_f": 0.9952153110047847,
+        "downbeat_f": 0.870967741935484
+      },
+      "Track01901": {
+        "beat_f": 0.7314285714285714,
+        "downbeat_f": 0.6666666666666666
+      },
+      "Track01902": {
+        "beat_f": 0.9746835443037974,
+        "downbeat_f": 1.0
+      },
+      "Track01903": {
+        "beat_f": 0.0,
+        "downbeat_f": 0.0
+      },
+      "Track01905": {
+        "beat_f": 0.215962441314554,
+        "downbeat_f": 0.0
+      },
+      "Track01906": {
+        "beat_f": 0.9876543209876543,
+        "downbeat_f": 0.9836065573770492
+      }
+    },
+    "beat_this_casm": {
+      "Track01876": {
+        "beat_f": 0.9886363636363636,
+        "downbeat_f": 0.9545454545454546
+      },
+      "Track01877": {
+        "beat_f": 0.8351648351648352,
+        "downbeat_f": 0.5714285714285715
+      },
+      "Track01880": {
+        "beat_f": 0.9650793650793651,
+        "downbeat_f": 1.0
+      },
+      "Track01881": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01882": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01883": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01884": {
+        "beat_f": 0.9934640522875817,
+        "downbeat_f": 1.0
+      },
+      "Track01887": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01888": {
+        "beat_f": 0.9936305732484078,
+        "downbeat_f": 1.0
+      },
+      "Track01892": {
+        "beat_f": 0.9965397923875432,
+        "downbeat_f": 0.9863013698630138
+      },
+      "Track01893": {
+        "beat_f": 1.0,
+        "downbeat_f": 0.8181818181818181
+      },
+      "Track01895": {
+        "beat_f": 0.0,
+        "downbeat_f": 0.0
+      },
+      "Track01898": {
+        "beat_f": 1.0,
+        "downbeat_f": 0.8533333333333333
+      },
+      "Track01899": {
+        "beat_f": 0.9957081545064378,
+        "downbeat_f": 1.0
+      },
+      "Track01900": {
+        "beat_f": 0.9952153110047847,
+        "downbeat_f": 0.7605633802816901
+      },
+      "Track01901": {
+        "beat_f": 0.7852760736196319,
+        "downbeat_f": 0.6666666666666666
+      },
+      "Track01902": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01903": {
+        "beat_f": 0.0,
+        "downbeat_f": 0.0
+      },
+      "Track01905": {
+        "beat_f": 0.215962441314554,
+        "downbeat_f": 0.0
+      },
+      "Track01906": {
+        "beat_f": 0.995850622406639,
+        "downbeat_f": 0.9836065573770492
+      }
+    },
+    "madmom": {
+      "Track01876": {
+        "beat_f": 0.6641509433962264,
+        "downbeat_f": 0.0
+      },
+      "Track01877": {
+        "beat_f": 0.8480000000000001,
+        "downbeat_f": 0.9666666666666667
+      },
+      "Track01880": {
+        "beat_f": 0.9969230769230769,
+        "downbeat_f": 1.0
+      },
+      "Track01881": {
+        "beat_f": 0.6633165829145727,
+        "downbeat_f": 1.0
+      },
+      "Track01882": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01883": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01884": {
+        "beat_f": 0.9934640522875817,
+        "downbeat_f": 0.6666666666666666
+      },
+      "Track01887": {
+        "beat_f": 0.6700507614213198,
+        "downbeat_f": 1.0
+      },
+      "Track01888": {
+        "beat_f": 0.9936305732484078,
+        "downbeat_f": 1.0
+      },
+      "Track01892": {
+        "beat_f": 0.9965397923875432,
+        "downbeat_f": 1.0
+      },
+      "Track01893": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01895": {
+        "beat_f": 0.0,
+        "downbeat_f": 0.0
+      },
+      "Track01898": {
+        "beat_f": 1.0,
+        "downbeat_f": 0.65625
+      },
+      "Track01899": {
+        "beat_f": 0.9913793103448276,
+        "downbeat_f": 1.0
+      },
+      "Track01900": {
+        "beat_f": 0.9952153110047847,
+        "downbeat_f": 0.5185185185185185
+      },
+      "Track01901": {
+        "beat_f": 0.6666666666666666,
+        "downbeat_f": 0.6666666666666666
+      },
+      "Track01902": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      },
+      "Track01903": {
+        "beat_f": 0.0,
+        "downbeat_f": 0.0
+      },
+      "Track01905": {
+        "beat_f": 0.215962441314554,
+        "downbeat_f": 0.0
+      },
+      "Track01906": {
+        "beat_f": 1.0,
+        "downbeat_f": 1.0
+      }
+    },
+    "librosa": {
+      "Track01876": {
+        "beat_f": 0.9942857142857142,
+        "downbeat_f": 0.0
+      },
+      "Track01877": {
+        "beat_f": 0.829268292682927,
+        "downbeat_f": 0.06557377049180328
+      },
+      "Track01880": {
+        "beat_f": 0.9648562300319489,
+        "downbeat_f": 0.0
+      },
+      "Track01881": {
+        "beat_f": 0.9847328244274809,
+        "downbeat_f": 1.0
+      },
+      "Track01882": {
+        "beat_f": 0.602510460251046,
+        "downbeat_f": 0.0
+      },
+      "Track01883": {
+        "beat_f": 0.9910714285714286,
+        "downbeat_f": 0.0
+      },
+      "Track01884": {
+        "beat_f": 0.6192893401015228,
+        "downbeat_f": 0.0
+      },
+      "Track01887": {
+        "beat_f": 0.9923076923076923,
+        "downbeat_f": 1.0
+      },
+      "Track01888": {
+        "beat_f": 0.9387755102040816,
+        "downbeat_f": 0.9473684210526316
+      },
+      "Track01892": {
+        "beat_f": 0.9859154929577464,
+        "downbeat_f": 0.9859154929577464
+      },
+      "Track01893": {
+        "beat_f": 0.9905660377358491,
+        "downbeat_f": 0.0
+      },
+      "Track01895": {
+        "beat_f": 0.0,
+        "downbeat_f": 0.0
+      },
+      "Track01898": {
+        "beat_f": 0.32160804020100503,
+        "downbeat_f": 0.08333333333333333
+      },
+      "Track01899": {
+        "beat_f": 0.9956709956709957,
+        "downbeat_f": 0.0
+      },
+      "Track01900": {
+        "beat_f": 0.9951690821256038,
+        "downbeat_f": 0.0
+      },
+      "Track01901": {
+        "beat_f": 0.21989528795811517,
+        "downbeat_f": 0.25
+      },
+      "Track01902": {
+        "beat_f": 0.9934640522875817,
+        "downbeat_f": 1.0
+      },
+      "Track01903": {
+        "beat_f": 0.27745664739884396,
+        "downbeat_f": 0.0
+      },
+      "Track01905": {
+        "beat_f": 0.19811320754716982,
+        "downbeat_f": 0.0
+      },
+      "Track01906": {
+        "beat_f": 0.9451476793248945,
+        "downbeat_f": 0.0
+      }
+    }
+  }
+}
