@@ -33,6 +33,7 @@ DEMUCS_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "demucs_separate.py"
 DRUM_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "drum_audio_to_midi.py"
 YOURMT3_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "yourmt3_transcribe.py"
 ADTOF_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "adtof_transcribe.py"
+DRUM_VELOCITY_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "drum_velocity.py"
 
 
 def _py() -> str:
@@ -288,6 +289,12 @@ def _try_adtof(
         return None
     if not drum_midi.exists():
         return None
+    # ADTOF는 velocity를 고정값으로 내므로 E-GMD 경로와 같은 어택 dB 매핑을 입힌다.
+    # 실패해도 타격 결과는 유효하므로 경고만 남긴다.
+    try:
+        _run(_script_cmd(DRUM_VELOCITY_SCRIPT_PATH, str(adt_input), str(drum_midi)))
+    except (subprocess.CalledProcessError, OSError) as error:
+        print(f"Drum velocity mapping failed ({error}); keeping ADTOF velocities.", file=sys.stderr)
     return {
         "midiPath": str(drum_midi.resolve()),
         "midiFileName": drum_midi.name,
@@ -358,6 +365,7 @@ def run_drums_mode(
         "midiPath": str(drum_midi.resolve()),
         "midiFileName": drum_midi.name,
         "mode": "drums",
+        "backend": "egmd",
         "counts": counts,
     }
     if drums_stem_path is not None:
@@ -365,10 +373,14 @@ def run_drums_mode(
     return result
 
 
-# 피아노 외 모드의 전사 백엔드 선택지. 첫 값이 기본값이며 환경변수로 바꿀 수 있다.
+# 피아노 외 모드의 전사 백엔드 선택지. 기본값은 DEFAULT_BACKENDS이며 환경변수로 바꿀 수 있다.
 # yourmt3_hybrid: YourMT3+ 원출력을 베이스 후처리(onset union/옥타브/fragment)의 후보로 사용(베이스 전용).
 NOTE_BACKENDS = ("basicpitch", "yourmt3", "yourmt3_hybrid")
 DRUM_BACKENDS = ("egmd", "adtof")
+# 드럼 기본값 adtof(연구용, 2026-10-24): 홀드아웃 실제 녹음(MDB Drums 23곡) 5클래스 F1
+# 0.546 → 0.859(곡별 차이 95% CI +0.25~+0.38) — eval/heldout/RESULTS_HELDOUT.md.
+# ADTOF는 CC BY-NC-SA(비상업)라 상업 배포 시 egmd로 되돌려야 한다. 격리 venv가 없으면 egmd로 폴백.
+DEFAULT_BACKENDS = {"bass": "basicpitch", "general": "basicpitch", "drums": "adtof"}
 
 
 def resolve_backend(mode: str, backend: str | None) -> str | None:
@@ -379,7 +391,7 @@ def resolve_backend(mode: str, backend: str | None) -> str | None:
         choices, env = DRUM_BACKENDS, "DRUMS_BACKEND"
     else:
         return None
-    value = (backend or os.environ.get(env) or choices[0]).strip().lower()
+    value = (backend or os.environ.get(env) or DEFAULT_BACKENDS[mode]).strip().lower()
     if value not in choices:
         raise ValueError(f"Unknown {mode} backend: {value} (choices: {', '.join(choices)})")
     return value
