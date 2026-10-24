@@ -24,6 +24,7 @@
 - `POST /api/transcribe` (multipart: `file`, `mode`=piano|bass|general) → `{ jobId }`. 폴링: `GET /api/jobs/{jobId}` → `{ progress, status, error, result }`. `result` = `{ midiUrl, midiFileName, mode }`.
 - `POST /api/separate` (multipart: `file`, `model`=htdemucs|htdemucs_6s) → `{ jobId }`. `result` = `{ stems: {vocals,drums,bass,other: url}, model, device, mode:"separate" }`. (research 1번, Stage 0 stem 분리)
 - `POST /api/drums` (multipart: `file`, `separate`="true"|"false") → `{ jobId }`. `result` = `{ midiUrl, midiFileName, mode:"drums", counts:{kick,snare,hihat}, drumsStemUrl? }`. (research 2번, Drum ADT)
+- **(2026-10-24 추가, 하위호환)** `/api/transcribe`·`/api/drums`에 선택 필드 `backend`: bass=`basicpitch`(기본)|`yourmt3`|`yourmt3_hybrid`, general=`basicpitch`|`yourmt3`, drums=`egmd`(기본)|`adtof`. `result.backend`=실제 사용 엔진(격리 venv 없거나 실패 시 기본 엔진으로 폴백), `result.requestedBackend`=요청값. 실측 결과 새 엔진 모두 기준선보다 낮아 기본값은 그대로 — 상세 `eval/RESULTS.md`.
 - 모든 job은 같은 폴링 엔드포인트/shape 공유. stem/오디오 산출물은 `http://localhost:8000/outputs/{jobId}/...`로 서빙.
 
 ## 모드별 상태

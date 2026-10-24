@@ -56,6 +56,11 @@ def parse_args():
     # --mtl-octave-audit: MTL octave 제안을 audit만(shadow, 미적용)
     parser.add_argument("--mtl-offset", action="store_true")
     parser.add_argument("--mtl-octave-audit", action="store_true")
+    parser.add_argument(
+        "--use-given-raw",
+        action="store_true",
+        help="raw MIDI를 다시 만들지 않고 주어진 파일(예: YourMT3+ 출력)을 후보로 사용",
+    )
 
     # raw MIDI detail을 얼마나 보존할지
     parser.add_argument("--min-raw-velocity", type=int, default=24)
@@ -527,7 +532,10 @@ def create_hybrid_midi(input_audio, raw_midi_path, output_midi, output_dir, args
     y, sr = load_audio_22050(input_audio, output_dir)
     duration = len(y) / sr
 
-    raw_midi_path = run_basic_pitch(input_audio, output_dir, requested_raw_midi_path=raw_midi_path)
+    if getattr(args, "use_given_raw", False) and raw_midi_path and Path(raw_midi_path).exists():
+        eprint(f"Using given raw MIDI (skip Basic Pitch): {raw_midi_path}")
+    else:
+        raw_midi_path = run_basic_pitch(input_audio, output_dir, requested_raw_midi_path=raw_midi_path)
     raw_notes = extract_midi_notes(raw_midi_path, min_raw_velocity=args.min_raw_velocity)
 
     eprint(f"Basic Pitch raw notes after velocity filter: {len(raw_notes)}")
