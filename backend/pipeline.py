@@ -36,6 +36,7 @@ ADTOF_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "adtof_transcribe.py"
 DRUM_VELOCITY_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "drum_velocity.py"
 BEAT_GRID_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "beat_grid.py"
 PITCH_BEND_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "bass_pitch_bend.py"
+NOTE_VELOCITY_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "note_velocity.py"
 # 피치 벤드 f0 추출기(eval/heldout/pitchbend_eval.py 홀드아웃 결과로 선택). 환경변수로 바꿀 수 있다.
 PITCH_BEND_METHOD = os.environ.get("PITCH_BEND_METHOD", "pyin")
 
@@ -176,6 +177,12 @@ def _try_yourmt3(
     if not final_midi.exists():
         return None
     info = _last_json_line(completed.stdout)
+    # YourMT3+는 벨로시티를 상수로 낸다. 오디오 어택 에너지로 다시 매긴다(R6 홀드아웃: Slakh 정답 대비
+    # Spearman ρ 0 → 0.268 [0.055, 0.466]). 실패해도 노트는 유효하므로 경고만 남긴다.
+    try:
+        _run(_script_cmd(NOTE_VELOCITY_SCRIPT_PATH, str(input_audio), str(final_midi)))
+    except (subprocess.CalledProcessError, OSError) as error:
+        print(f"Velocity mapping failed ({error}); keeping YourMT3+ velocities.", file=sys.stderr)
     return {
         "midiPath": str(final_midi.resolve()),
         "midiFileName": final_midi.name,
