@@ -43,4 +43,15 @@
 - 다운로드는 공식 저장소 또는 기존 홀드아웃과 같은 HF 미러에서만 받았다(합계 약 13 GB, 30 GB 한도 안).
 
 ## 5. 배포
-DEPLOY_SECTION
+| 검사 | 결과 |
+|---|---|
+| 피아노 회귀 sha256 | `24a3790cb7e8b30162350dac85b8f08e17c2e7567901bd03edf572c72e4159b0` 일치 — 소스 CLI, 8001 API, frozen 사이드카, **DMG 안 앱의 사이드카** 모두 |
+| `npm run build` | exit 0 (정적 내보내기에 `samples/` 포함) |
+| 백엔드 스모크(8001, 공용 8000은 건드리지 않음) | 성공: bass 기본, bass + pitchBend + beatGrid(Beat This!), /api/drums(ADTOF, band 벨로시티) |
+| 브라우저 미리보기 새 악기 재생 | 콘솔 에러 0, 외부(CDN) 요청 0, 7개 악기 로컬 샘플 200, 벤드 곡선 표시 |
+| DMG | `bundle_dmg.sh` 성공(hdiutil 대체 불필요), Applications 링크 포함. 마운트한 DMG 안 백엔드로 피아노 sha256 일치, 드럼 변환 backend=adtof(번들 워커) |
+
+- main 병합·push: `355bdc6` (Merge overnight/2026-10-25), 브랜치도 push.
+- 태그 `v0.3.0` push, 릴리스: https://github.com/ytb1124/audio-to-midi/releases/tag/v0.3.0
+- 자산 `Trackform_0.3.0_aarch64.dmg` 1,139,464,201 바이트(API 확인, 로컬과 일치), SHA-256 `d9be55c29ecaaee575953c09e7e2f977cd1ab2fa9bfe206b5ff33e5809abeb67`.
+- 0.2.0 대비 DMG가 커진 이유: ADTOF(TensorFlow) 워커 번들(약 1.4 GB 압축 전)과 Beat This! 체크포인트.
