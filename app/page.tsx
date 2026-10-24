@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Midi } from "@tonejs/midi";
 import * as Tone from "tone";
 import {
@@ -9,11 +9,24 @@ import {
   runDesktopSeparation,
   runDesktopTranscription,
 } from "./lib/desktop-backend";
+import {
+  bendsForNotes,
+  MultiSampleInstrument,
+  type BendPoint,
+  type SampleInstrumentKey,
+} from "./lib/sampler";
 
 type ModeType = "piano" | "bass" | "drums" | "general";
 type Language = "en" | "ko";
 
-type InstrumentType = "grand_piano" | "double_bass" | "electric_bass" | "drum_kit";
+type InstrumentType =
+  | "grand_piano"
+  | "electric_piano"
+  | "double_bass"
+  | "electric_bass"
+  | "drum_kit"
+  | "strings"
+  | "pad";
 type StemName = "vocals" | "drums" | "bass" | "other";
 
 type NoteEvent = {
@@ -23,6 +36,8 @@ type NoteEvent = {
   time: number;
   duration: number;
   velocity: number;
+  // Pitch-bend curve relative to the note start (cents, ±2 semitone MIDI range).
+  bend?: BendPoint[];
 };
 
 type PlaybackInstrument = {
@@ -30,7 +45,8 @@ type PlaybackInstrument = {
     noteName: string,
     duration: number,
     time?: Tone.Unit.Time,
-    velocity?: number
+    velocity?: number,
+    bend?: BendPoint[]
   ) => void;
   dispose: () => void;
   _extraDisposables?: Tone.ToneAudioNode[];
@@ -176,45 +192,6 @@ const GM_DRUM_LABELS: Record<number, string> = {
 };
 const MIDI_CONVERTIBLE_STEMS: StemName[] = ["drums", "bass"];
 const STEM_WAVEFORM_PEAK_COUNT = 3600;
-const DRUM_SAMPLE_BASE_URL = "https://oramics.github.io/sampled/DM/CR-78/samples/";
-const DRUM_SAMPLE_FILE_BY_MIDI: Record<number, string> = {
-  24: "tamb-short.wav",
-  25: "tamb-long.wav",
-  26: "guiro-short.wav",
-  27: "guiro-long.wav",
-  28: "bongo-l.wav",
-  29: "bongo-h.wav",
-  30: "conga-l.wav",
-  31: "rim.wav",
-  32: "rim.wav",
-  33: "rim.wav",
-  34: "rim.wav",
-  35: "kick.wav",
-  36: "kick-accent.wav",
-  37: "rim.wav",
-  38: "snare.wav",
-  39: "snare-accent.wav",
-  40: "snare-accent.wav",
-  41: "conga-l.wav",
-  42: "hihat.wav",
-  43: "bongo-l.wav",
-  44: "hihat-accent.wav",
-  45: "bongo-l.wav",
-  46: "hihat-metal.wav",
-  47: "bongo-h.wav",
-  48: "bongo-h.wav",
-  49: "cymbal.wav",
-  50: "bongo-h.wav",
-  51: "cymbal.wav",
-  52: "cymbal.wav",
-  53: "cymbal.wav",
-  54: "tamb-short.wav",
-  55: "cymbal.wav",
-  56: "cowbell.wav",
-  57: "cymbal.wav",
-  59: "cymbal.wav",
-};
-
 function createInitialStemMidiConversions(): Record<StemName, StemMidiConversionState> {
   return {
     vocals: { isProcessing: false, progress: 0, status: "", result: null },
@@ -356,188 +333,19 @@ function getCurrentTimeMs() {
   return Date.now();
 }
 
-function createGrandPianoSampler() {
-  const reverb = new Tone.Reverb({
-    decay: 2.2,
-    wet: 0.18,
-  }).toDestination();
+const SAMPLE_INSTRUMENT_BY_TYPE: Record<InstrumentType, SampleInstrumentKey> = {
+  grand_piano: "piano",
+  electric_piano: "electric_piano",
+  double_bass: "upright_bass",
+  electric_bass: "electric_bass",
+  drum_kit: "drums",
+  strings: "strings",
+  pad: "pad",
+};
 
-  const compressor = new Tone.Compressor({
-    threshold: -18,
-    ratio: 3,
-    attack: 0.02,
-    release: 0.25,
-  }).connect(reverb);
-
-  const sampler = new Tone.Sampler({
-    urls: {
-      A0: "A0.mp3",
-      C1: "C1.mp3",
-      "D#1": "Ds1.mp3",
-      "F#1": "Fs1.mp3",
-      A1: "A1.mp3",
-      C2: "C2.mp3",
-      "D#2": "Ds2.mp3",
-      "F#2": "Fs2.mp3",
-      A2: "A2.mp3",
-      C3: "C3.mp3",
-      "D#3": "Ds3.mp3",
-      "F#3": "Fs3.mp3",
-      A3: "A3.mp3",
-      C4: "C4.mp3",
-      "D#4": "Ds4.mp3",
-      "F#4": "Fs4.mp3",
-      A4: "A4.mp3",
-      C5: "C5.mp3",
-      "D#5": "Ds5.mp3",
-      "F#5": "Fs5.mp3",
-      A5: "A5.mp3",
-      C6: "C6.mp3",
-      "D#6": "Ds6.mp3",
-      "F#6": "Fs6.mp3",
-      A6: "A6.mp3",
-      C7: "C7.mp3",
-      "D#7": "Ds7.mp3",
-      "F#7": "Fs7.mp3",
-      A7: "A7.mp3",
-      C8: "C8.mp3",
-    },
-    release: 1.2,
-    baseUrl: "https://tonejs.github.io/audio/salamander/",
-  }).connect(compressor);
-
-  const instrument = sampler as PlaybackInstrument;
-  instrument._extraDisposables = [compressor, reverb];
-
-  return instrument;
-}
-
-
-function createSoundfontBassSampler(
-  soundfontInstrument: string,
-  filterFrequency: number,
-  release: number
-) {
-  const filter = new Tone.Filter({
-    frequency: filterFrequency,
-    type: "lowpass",
-    rolloff: -24,
-  }).toDestination();
-
-  const compressor = new Tone.Compressor({
-    threshold: -22,
-    ratio: 4,
-    attack: 0.015,
-    release: 0.22,
-  }).connect(filter);
-
-  const sampler = new Tone.Sampler({
-    urls: {
-      E1: "E1.mp3",
-      A1: "A1.mp3",
-      D2: "D2.mp3",
-      G2: "G2.mp3",
-      C3: "C3.mp3",
-      F3: "F3.mp3",
-      A3: "A3.mp3",
-    },
-    release,
-    baseUrl: `https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/${soundfontInstrument}-mp3/`,
-  }).connect(compressor);
-
-  const instrument = sampler as PlaybackInstrument;
-  instrument._extraDisposables = [compressor, filter];
-
-  return instrument;
-}
-
-function getDrumSampleDuration(midi: number, noteDuration: number) {
-  if (midi === 42 || midi === 44) return Math.min(Math.max(noteDuration, 0.06), 0.12);
-  if (midi === 46) return Math.min(Math.max(noteDuration, 0.35), 0.75);
-  if ([49, 51, 52, 53, 55, 57, 59].includes(midi)) {
-    return Math.min(Math.max(noteDuration, 0.9), 1.6);
-  }
-  if ([41, 43, 45, 47, 48, 50].includes(midi)) {
-    return Math.min(Math.max(noteDuration, 0.22), 0.5);
-  }
-  if (midi === 35 || midi === 36) return Math.min(Math.max(noteDuration, 0.18), 0.42);
-  if (midi === 37 || midi === 39 || midi === 54 || midi === 56) {
-    return Math.min(Math.max(noteDuration, 0.12), 0.35);
-  }
-
-  return Math.min(Math.max(noteDuration, 0.16), 0.42);
-}
-
-function createDrumKitInstrument(): PlaybackInstrument {
-  const reverb = new Tone.Reverb({
-    decay: 0.75,
-    wet: 0.06,
-  }).toDestination();
-
-  const compressor = new Tone.Compressor({
-    threshold: -14,
-    ratio: 5,
-    attack: 0.004,
-    release: 0.12,
-  }).connect(reverb);
-
-  const sampler = new Tone.Sampler({
-    urls: Object.fromEntries(
-      Object.entries(DRUM_SAMPLE_FILE_BY_MIDI).map(([midi, fileName]) => [
-        Tone.Frequency(Number(midi), "midi").toNote(),
-        `${DRUM_SAMPLE_BASE_URL}${fileName}`,
-      ])
-    ),
-    attack: 0,
-    release: 0.04,
-  }).connect(compressor);
-
-  return {
-    triggerAttackRelease(noteName, duration, time, velocity = 0.8) {
-      const midi = Math.round(Tone.Frequency(noteName).toMidi());
-      const vel = Math.min(Math.max(velocity, 0.08), 0.98);
-      const when = time ?? Tone.now();
-      const sampledMidi = DRUM_SAMPLE_FILE_BY_MIDI[midi] ? midi : 38;
-      const sampledNoteName = Tone.Frequency(sampledMidi, "midi").toNote();
-
-      sampler.triggerAttackRelease(
-        sampledNoteName,
-        getDrumSampleDuration(sampledMidi, duration),
-        when,
-        vel
-      );
-    },
-    dispose() {
-      sampler.dispose();
-      compressor.dispose();
-      reverb.dispose();
-    },
-  };
-}
-
-
+// Offline multi-sampled instruments from public/samples (licenses in public/samples/LICENSES.md).
 function createInstrument(type: InstrumentType) {
-  if (type === "grand_piano") return createGrandPianoSampler();
-
-  if (type === "drum_kit") return createDrumKitInstrument();
-
-  if (type === "double_bass") {
-    return createSoundfontBassSampler(
-      "acoustic_bass",
-      950,
-      0.75
-    );
-  }
-
-  if (type === "electric_bass") {
-    return createSoundfontBassSampler(
-      "electric_bass_pick",
-      1800,
-      0.38
-    );
-  }
-
-  return createGrandPianoSampler();
+  return new MultiSampleInstrument(SAMPLE_INSTRUMENT_BY_TYPE[type] ?? "piano");
 }
 
 function ModeIcon({ mode }: { mode: ModeType }) {
@@ -770,7 +578,10 @@ const UI_COPY = {
     grandPiano: "Grand Piano",
     doubleBass: "Double Bass",
     electricBass: "Electric Bass",
-    drumKit: "Sampled Drum Kit",
+    drumKit: "Acoustic Drum Kit",
+    electricPiano: "Electric Piano",
+    strings: "String Ensemble",
+    pad: "String Pad",
     loadingSound: "Loading sound",
     ready: "Ready",
     readyOnPlay: "Ready on play",
@@ -872,7 +683,10 @@ const UI_COPY = {
     grandPiano: "그랜드 피아노",
     doubleBass: "더블 베이스",
     electricBass: "일렉트릭 베이스",
-    drumKit: "샘플 드럼 키트",
+    drumKit: "어쿠스틱 드럼 키트",
+    electricPiano: "일렉트릭 피아노",
+    strings: "현악 앙상블",
+    pad: "스트링 패드",
     loadingSound: "사운드 불러오는 중",
     ready: "준비됨",
     readyOnPlay: "재생 시 준비",
@@ -1117,7 +931,7 @@ export default function Home() {
     const instrument = createInstrument(type);
     instrumentRef.current = instrument;
 
-    await Tone.loaded();
+    await instrument.load();
 
     setIsInstrumentLoading(false);
     setIsInstrumentReady(true);
@@ -1163,7 +977,9 @@ export default function Home() {
   async function loadMidiArrayBuffer(arrayBuffer: ArrayBuffer, fileName: string) {
     const midi = new Midi(arrayBuffer);
 
-    const detectedTempo = midi.header.tempos[0]?.bpm;
+    // Beat-grid MIDI carries a tempo per beat; the editor grid uses one tempo, so take the median.
+    const tempoValues = midi.header.tempos.map((tempo) => tempo.bpm).sort((a, b) => a - b);
+    const detectedTempo = tempoValues[Math.floor(tempoValues.length / 2)];
     const detectedTimeSignature = midi.header.timeSignatures[0]?.timeSignature;
 
     setTempoBpm(
@@ -1185,6 +1001,7 @@ export default function Home() {
     const extractedNotes: NoteEvent[] = [];
 
     midi.tracks.forEach((track, trackIndex) => {
+      const noteBends = bendsForNotes(track.notes, track.pitchBends);
       track.notes.forEach((note, noteIndex) => {
         extractedNotes.push({
           id: `track-${trackIndex}-note-${noteIndex}`,
@@ -1193,6 +1010,7 @@ export default function Home() {
           time: note.time,
           duration: note.duration,
           velocity: note.velocity,
+          bend: noteBends[noteIndex],
         });
       });
     });
@@ -2244,7 +2062,8 @@ export default function Home() {
           noteName,
           Math.max(note.duration, 0.05),
           time,
-          Math.min(Math.max(note.velocity * 0.95, 0.08), 0.98)
+          Math.min(Math.max(note.velocity * 0.95, 0.08), 0.98),
+          note.bend
         );
       }, note.time);
     });
@@ -2743,6 +2562,15 @@ export default function Home() {
           duration: Math.max(MIN_NOTE_DURATION, note.duration),
           velocity: Math.min(Math.max(note.velocity, 0), 1),
         });
+        if (note.bend) {
+          note.bend.forEach((point) =>
+            track.addPitchBend({
+              time: note.time + point.time,
+              value: Math.min(Math.max(point.cents / 200, -1), 1),
+            })
+          );
+          track.addPitchBend({ time: note.time + note.duration, value: 0 });
+        }
       });
 
     const bytes = midi.toArray();
@@ -3195,6 +3023,9 @@ export default function Home() {
               <option value="double_bass">{copy.doubleBass}</option>
               <option value="electric_bass">{copy.electricBass}</option>
               <option value="drum_kit">{copy.drumKit}</option>
+              <option value="electric_piano">{copy.electricPiano}</option>
+              <option value="strings">{copy.strings}</option>
+              <option value="pad">{copy.pad}</option>
             </select>
           </label>
           <span className="instrument-status">{isInstrumentLoading ? copy.loadingSound : isInstrumentReady ? copy.ready : copy.readyOnPlay}</span>
@@ -3698,15 +3529,49 @@ export default function Home() {
                 8
               );
               const isSelected = selectedNoteIds.has(note.id);
+              const bendCurve = note.bend
+                ? note.bend
+                    .map((point, pointIndex) => {
+                      const nextTime = note.bend![pointIndex + 1]?.time ?? note.duration;
+                      const px = (time: number) =>
+                        (Math.min(time, note.duration) / secondsPerQuarterBeat) * pixelsPerBeat;
+                      const py = 2 * noteRowHeight - (point.cents / 100) * noteRowHeight;
+                      return `${px(point.time)},${py} ${px(nextTime)},${py}`;
+                    })
+                    .join(" ")
+                : null;
 
               return (
+                <Fragment key={note.id}>
+                {bendCurve && (
+                  <svg
+                    aria-hidden="true"
+                    width={width}
+                    height={4 * noteRowHeight}
+                    style={{
+                      position: "absolute",
+                      left: PIANO_KEY_WIDTH + x,
+                      top: RULER_HEIGHT + y + noteRowHeight / 2 - 2 * noteRowHeight,
+                      overflow: "visible",
+                      pointerEvents: "none",
+                      zIndex: 13,
+                    }}
+                  >
+                    <polyline
+                      points={bendCurve}
+                      fill="none"
+                      stroke="#bf5af2"
+                      strokeWidth={2}
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
                 <button
                   type="button"
                   data-piano-note
-                  key={note.id}
+                  title={`${note.name} · ${note.time.toFixed(2)}s${note.bend ? " · pitch bend" : ""}`}
                   aria-label={`${note.name}, ${note.time.toFixed(2)} seconds, ${note.duration.toFixed(2)} seconds long`}
                   aria-pressed={isSelected}
-                  title={`${note.name} · ${note.time.toFixed(2)}s`}
                   onClick={(event) => handleNoteSelect(event, note.id, index)}
                   onPointerDown={(event) =>
                     beginNotePointerEdit(event, note.id, "move")
@@ -3790,6 +3655,7 @@ export default function Home() {
                     }}
                   />
                 </button>
+                </Fragment>
               );
             })}
           </div>
