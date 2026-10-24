@@ -15,6 +15,26 @@
     "cymbal": 0.6804471712159808
    }
   },
+  "A1": {
+   "mean": 0.8161375435404088,
+   "ci": [
+    0.755986741168933,
+    0.8711617130676608
+   ],
+   "n": 23,
+   "vs_A0": [
+    -0.042717441391157476,
+    -0.0616027353357167,
+    -0.02520751133507071
+   ],
+   "per_class": {
+    "kick": 0.9273765488813336,
+    "snare": 0.8527344364060536,
+    "hihat": 0.7634797079739525,
+    "tom": 0.5435382138336278,
+    "cymbal": 0.6530446298083808
+   }
+  },
   "A4f": {
    "mean": 0.8158017901680713,
    "ci": [
@@ -752,6 +772,735 @@
     },
     "n_ref": 122,
     "n_est": 132,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   }
+  },
+  "A1": {
+   "MusicDelta_80sRock": {
+    "f1": 0.6732673267326732,
+    "f1_onset_only": 0.6732673267326732,
+    "per_class": {
+     "kick": {
+      "f1": 0.9919999999999999,
+      "n_ref": 62,
+      "n_est": 63
+     },
+     "snare": {
+      "f1": 1.0,
+      "n_ref": 35,
+      "n_est": 35
+     },
+     "hihat": {
+      "f1": 0.0,
+      "n_ref": 0,
+      "n_est": 61
+     },
+     "tom": {
+      "f1": 0.0,
+      "n_ref": 0,
+      "n_est": 36
+     },
+     "cymbal": {
+      "f1": 0.9090909090909091,
+      "n_ref": 5,
+      "n_est": 6
+     }
+    },
+    "n_ref": 102,
+    "n_est": 201,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Beatles": {
+    "f1": 0.6006389776357827,
+    "f1_onset_only": 0.6517571884984026,
+    "per_class": {
+     "kick": {
+      "f1": 0.989247311827957,
+      "n_ref": 47,
+      "n_est": 46
+     },
+     "snare": {
+      "f1": 0.8311688311688311,
+      "n_ref": 45,
+      "n_est": 32
+     },
+     "hihat": {
+      "f1": 0.0,
+      "n_ref": 0,
+      "n_est": 67
+     },
+     "tom": {
+      "f1": 0.4210526315789473,
+      "n_ref": 29,
+      "n_est": 47
+     }
+    },
+    "n_ref": 121,
+    "n_est": 192,
+    "unmapped_est": {},
+    "unmapped_ref": {
+     "54": 32
+    }
+   },
+   "MusicDelta_BebopJazz": {
+    "f1": 0.49374999999999997,
+    "f1_onset_only": 0.6984374999999999,
+    "per_class": {
+     "kick": {
+      "f1": 0.6388888888888888,
+      "n_ref": 30,
+      "n_est": 42
+     },
+     "snare": {
+      "f1": 0.3917197452229299,
+      "n_ref": 412,
+      "n_est": 216
+     },
+     "hihat": {
+      "f1": 0.5944055944055945,
+      "n_ref": 186,
+      "n_est": 386
+     },
+     "tom": {
+      "f1": 0.0,
+      "n_ref": 0,
+      "n_est": 2
+     },
+     "cymbal": {
+      "f1": 0.0,
+      "n_ref": 6,
+      "n_est": 0
+     }
+    },
+    "n_ref": 634,
+    "n_est": 646,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Britpop": {
+    "f1": 0.9333333333333332,
+    "f1_onset_only": 0.940952380952381,
+    "per_class": {
+     "kick": {
+      "f1": 0.9600000000000001,
+      "n_ref": 48,
+      "n_est": 52
+     },
+     "snare": {
+      "f1": 0.9294117647058823,
+      "n_ref": 89,
+      "n_est": 81
+     },
+     "hihat": {
+      "f1": 0.924901185770751,
+      "n_ref": 118,
+      "n_est": 135
+     },
+     "cymbal": {
+      "f1": 1.0,
+      "n_ref": 1,
+      "n_est": 1
+     }
+    },
+    "n_ref": 256,
+    "n_est": 269,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_CoolJazz": {
+    "f1": 0.5304659498207885,
+    "f1_onset_only": 0.7144563918757467,
+    "per_class": {
+     "kick": {
+      "f1": 0.22471910112359553,
+      "n_ref": 69,
+      "n_est": 20
+     },
+     "snare": {
+      "f1": 0.6046511627906977,
+      "n_ref": 286,
+      "n_est": 144
+     },
+     "hihat": {
+      "f1": 0.5342019543973942,
+      "n_ref": 82,
+      "n_est": 225
+     },
+     "tom": {
+      "f1": 0.0,
+      "n_ref": 0,
+      "n_est": 4
+     },
+     "cymbal": {
+      "f1": 0.0,
+      "n_ref": 7,
+      "n_est": 0
+     }
+    },
+    "n_ref": 444,
+    "n_est": 393,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Country1": {
+    "f1": 0.8073394495412844,
+    "f1_onset_only": 0.8440366972477064,
+    "per_class": {
+     "kick": {
+      "f1": 1.0,
+      "n_ref": 31,
+      "n_est": 31
+     },
+     "snare": {
+      "f1": 0.7719298245614036,
+      "n_ref": 32,
+      "n_est": 25
+     },
+     "hihat": {
+      "f1": 0.7070707070707072,
+      "n_ref": 36,
+      "n_est": 63
+     }
+    },
+    "n_ref": 99,
+    "n_est": 119,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Disco": {
+    "f1": 0.9228624535315986,
+    "f1_onset_only": 0.9228624535315986,
+    "per_class": {
+     "kick": {
+      "f1": 1.0,
+      "n_ref": 118,
+      "n_est": 118
+     },
+     "snare": {
+      "f1": 1.0,
+      "n_ref": 147,
+      "n_est": 147
+     },
+     "hihat": {
+      "f1": 0.8976572133168927,
+      "n_ref": 728,
+      "n_est": 894
+     }
+    },
+    "n_ref": 993,
+    "n_est": 1159,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_FreeJazz": {
+    "f1": 0.7725577926920207,
+    "f1_onset_only": 0.8187919463087249,
+    "per_class": {
+     "kick": {
+      "f1": 0.9344262295081968,
+      "n_ref": 129,
+      "n_est": 115
+     },
+     "snare": {
+      "f1": 0.7657342657342657,
+      "n_ref": 329,
+      "n_est": 243
+     },
+     "hihat": {
+      "f1": 0.16666666666666669,
+      "n_ref": 7,
+      "n_est": 41
+     },
+     "tom": {
+      "f1": 0.4,
+      "n_ref": 23,
+      "n_est": 12
+     },
+     "cymbal": {
+      "f1": 0.7873303167420814,
+      "n_ref": 210,
+      "n_est": 232
+     }
+    },
+    "n_ref": 698,
+    "n_est": 643,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_FunkJazz": {
+    "f1": 0.9386503067484662,
+    "f1_onset_only": 0.9386503067484662,
+    "per_class": {
+     "kick": {
+      "f1": 0.983050847457627,
+      "n_ref": 58,
+      "n_est": 60
+     },
+     "snare": {
+      "f1": 0.966824644549763,
+      "n_ref": 109,
+      "n_est": 102
+     },
+     "hihat": {
+      "f1": 0.9025974025974026,
+      "n_ref": 142,
+      "n_est": 166
+     },
+     "tom": {
+      "f1": 0.8,
+      "n_ref": 2,
+      "n_est": 3
+     },
+     "cymbal": {
+      "f1": 1.0,
+      "n_ref": 5,
+      "n_est": 5
+     }
+    },
+    "n_ref": 316,
+    "n_est": 336,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_FusionJazz": {
+    "f1": 0.748824082784572,
+    "f1_onset_only": 0.8692380056444026,
+    "per_class": {
+     "kick": {
+      "f1": 0.9140893470790378,
+      "n_ref": 136,
+      "n_est": 155
+     },
+     "snare": {
+      "f1": 0.8288288288288288,
+      "n_ref": 123,
+      "n_est": 99
+     },
+     "hihat": {
+      "f1": 0.6071428571428572,
+      "n_ref": 109,
+      "n_est": 227
+     },
+     "tom": {
+      "f1": 0.7058823529411765,
+      "n_ref": 13,
+      "n_est": 21
+     },
+     "cymbal": {
+      "f1": 0.6555555555555556,
+      "n_ref": 118,
+      "n_est": 62
+     }
+    },
+    "n_ref": 499,
+    "n_est": 564,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Gospel": {
+    "f1": 0.9207258834765998,
+    "f1_onset_only": 0.936007640878701,
+    "per_class": {
+     "kick": {
+      "f1": 0.9784172661870504,
+      "n_ref": 140,
+      "n_est": 138
+     },
+     "snare": {
+      "f1": 0.9450549450549451,
+      "n_ref": 137,
+      "n_est": 136
+     },
+     "hihat": {
+      "f1": 0.9351230425055927,
+      "n_ref": 211,
+      "n_est": 236
+     },
+     "tom": {
+      "f1": 0.0,
+      "n_ref": 0,
+      "n_est": 25
+     },
+     "cymbal": {
+      "f1": 0.6666666666666667,
+      "n_ref": 11,
+      "n_est": 13
+     }
+    },
+    "n_ref": 499,
+    "n_est": 548,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Grunge": {
+    "f1": 0.926391382405745,
+    "f1_onset_only": 0.9371633752244165,
+    "per_class": {
+     "kick": {
+      "f1": 0.9826589595375723,
+      "n_ref": 88,
+      "n_est": 85
+     },
+     "snare": {
+      "f1": 0.8627450980392156,
+      "n_ref": 56,
+      "n_est": 46
+     },
+     "hihat": {
+      "f1": 0.9632653061224489,
+      "n_ref": 120,
+      "n_est": 125
+     },
+     "tom": {
+      "f1": 0.6206896551724139,
+      "n_ref": 12,
+      "n_est": 17
+     },
+     "cymbal": {
+      "f1": 0.5,
+      "n_ref": 2,
+      "n_est": 6
+     }
+    },
+    "n_ref": 278,
+    "n_est": 279,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Hendrix": {
+    "f1": 0.9921259842519685,
+    "f1_onset_only": 0.9921259842519685,
+    "per_class": {
+     "kick": {
+      "f1": 1.0,
+      "n_ref": 31,
+      "n_est": 31
+     },
+     "snare": {
+      "f1": 1.0,
+      "n_ref": 32,
+      "n_est": 32
+     },
+     "hihat": {
+      "f1": 0.9843749999999999,
+      "n_ref": 63,
+      "n_est": 65
+     }
+    },
+    "n_ref": 126,
+    "n_est": 128,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_LatinJazz": {
+    "f1": 0.8128930817610063,
+    "f1_onset_only": 0.8930817610062893,
+    "per_class": {
+     "kick": {
+      "f1": 0.9868995633187774,
+      "n_ref": 114,
+      "n_est": 115
+     },
+     "snare": {
+      "f1": 0.8519362186788155,
+      "n_ref": 199,
+      "n_est": 240
+     },
+     "hihat": {
+      "f1": 0.7832167832167832,
+      "n_ref": 179,
+      "n_est": 250
+     },
+     "tom": {
+      "f1": 0.0,
+      "n_ref": 2,
+      "n_est": 6
+     },
+     "cymbal": {
+      "f1": 0.5868263473053892,
+      "n_ref": 99,
+      "n_est": 68
+     }
+    },
+    "n_ref": 593,
+    "n_est": 679,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_ModalJazz": {
+    "f1": 0.8020369191597708,
+    "f1_onset_only": 0.8504137492043286,
+    "per_class": {
+     "kick": {
+      "f1": 0.8666666666666665,
+      "n_ref": 27,
+      "n_est": 33
+     },
+     "snare": {
+      "f1": 0.8343558282208589,
+      "n_ref": 240,
+      "n_est": 249
+     },
+     "hihat": {
+      "f1": 0.40170940170940167,
+      "n_ref": 177,
+      "n_est": 57
+     },
+     "cymbal": {
+      "f1": 0.8959390862944163,
+      "n_ref": 371,
+      "n_est": 417
+     }
+    },
+    "n_ref": 815,
+    "n_est": 756,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Punk": {
+    "f1": 0.8511627906976744,
+    "f1_onset_only": 0.883720930232558,
+    "per_class": {
+     "kick": {
+      "f1": 0.923076923076923,
+      "n_ref": 73,
+      "n_est": 83
+     },
+     "snare": {
+      "f1": 0.8947368421052632,
+      "n_ref": 41,
+      "n_est": 35
+     },
+     "hihat": {
+      "f1": 0.7619047619047619,
+      "n_ref": 50,
+      "n_est": 76
+     },
+     "tom": {
+      "f1": 0.8571428571428571,
+      "n_ref": 8,
+      "n_est": 6
+     },
+     "cymbal": {
+      "f1": 0.7931034482758621,
+      "n_ref": 32,
+      "n_est": 26
+     }
+    },
+    "n_ref": 204,
+    "n_est": 226,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Reggae": {
+    "f1": 0.7414634146341463,
+    "f1_onset_only": 0.7609756097560976,
+    "per_class": {
+     "kick": {
+      "f1": 0.9836065573770492,
+      "n_ref": 30,
+      "n_est": 31
+     },
+     "snare": {
+      "f1": 0.7857142857142857,
+      "n_ref": 16,
+      "n_est": 12
+     },
+     "hihat": {
+      "f1": 0.8048780487804877,
+      "n_ref": 34,
+      "n_est": 48
+     },
+     "tom": {
+      "f1": 0.0,
+      "n_ref": 0,
+      "n_est": 30
+     },
+     "cymbal": {
+      "f1": 1.0,
+      "n_ref": 2,
+      "n_est": 2
+     }
+    },
+    "n_ref": 82,
+    "n_est": 123,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Rock": {
+    "f1": 0.9928057553956835,
+    "f1_onset_only": 0.9928057553956835,
+    "per_class": {
+     "kick": {
+      "f1": 1.0,
+      "n_ref": 11,
+      "n_est": 11
+     },
+     "snare": {
+      "f1": 1.0,
+      "n_ref": 12,
+      "n_est": 12
+     },
+     "hihat": {
+      "f1": 0.989247311827957,
+      "n_ref": 47,
+      "n_est": 46
+     }
+    },
+    "n_ref": 70,
+    "n_est": 69,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Rockabilly": {
+    "f1": 0.9964912280701755,
+    "f1_onset_only": 0.9964912280701755,
+    "per_class": {
+     "kick": {
+      "f1": 1.0,
+      "n_ref": 25,
+      "n_est": 25
+     },
+     "snare": {
+      "f1": 1.0,
+      "n_ref": 24,
+      "n_est": 24
+     },
+     "hihat": {
+      "f1": 0.9946524064171123,
+      "n_ref": 93,
+      "n_est": 94
+     }
+    },
+    "n_ref": 142,
+    "n_est": 143,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Shadows": {
+    "f1": 0.9074626865671641,
+    "f1_onset_only": 0.9134328358208955,
+    "per_class": {
+     "kick": {
+      "f1": 1.0,
+      "n_ref": 30,
+      "n_est": 30
+     },
+     "snare": {
+      "f1": 1.0,
+      "n_ref": 31,
+      "n_est": 31
+     },
+     "hihat": {
+      "f1": 0.0,
+      "n_ref": 0,
+      "n_est": 3
+     },
+     "cymbal": {
+      "f1": 0.8666666666666667,
+      "n_ref": 117,
+      "n_est": 93
+     }
+    },
+    "n_ref": 178,
+    "n_est": 157,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_SpeedMetal": {
+    "f1": 0.9243421052631579,
+    "f1_onset_only": 0.9375,
+    "per_class": {
+     "kick": {
+      "f1": 0.9779735682819383,
+      "n_ref": 114,
+      "n_est": 113
+     },
+     "snare": {
+      "f1": 0.9538461538461538,
+      "n_ref": 67,
+      "n_est": 63
+     },
+     "hihat": {
+      "f1": 0.8713692946058093,
+      "n_ref": 105,
+      "n_est": 136
+     },
+     "cymbal": {
+      "f1": 0.6,
+      "n_ref": 4,
+      "n_est": 6
+     }
+    },
+    "n_ref": 290,
+    "n_est": 318,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_SwingJazz": {
+    "f1": 0.6701846965699209,
+    "f1_onset_only": 0.7361477572559368,
+    "per_class": {
+     "kick": {
+      "f1": 0.993939393939394,
+      "n_ref": 82,
+      "n_est": 83
+     },
+     "snare": {
+      "f1": 0.576051779935275,
+      "n_ref": 198,
+      "n_est": 111
+     },
+     "hihat": {
+      "f1": 0.7168141592920354,
+      "n_ref": 85,
+      "n_est": 141
+     },
+     "tom": {
+      "f1": 0.0,
+      "n_ref": 0,
+      "n_est": 35
+     },
+     "cymbal": {
+      "f1": 0.17391304347826086,
+      "n_ref": 4,
+      "n_est": 19
+     }
+    },
+    "n_ref": 369,
+    "n_est": 389,
+    "unmapped_est": {},
+    "unmapped_ref": {}
+   },
+   "MusicDelta_Zeppelin": {
+    "f1": 0.8113879003558718,
+    "f1_onset_only": 0.8256227758007116,
+    "per_class": {
+     "kick": {
+      "f1": 1.0,
+      "n_ref": 36,
+      "n_est": 36
+     },
+     "snare": {
+      "f1": 0.8181818181818182,
+      "n_ref": 24,
+      "n_est": 20
+     },
+     "hihat": {
+      "f1": 0.728395061728395,
+      "n_ref": 61,
+      "n_est": 101
+     },
+     "cymbal": {
+      "f1": 0.6666666666666666,
+      "n_ref": 1,
+      "n_est": 2
+     }
+    },
+    "n_ref": 122,
+    "n_est": 159,
     "unmapped_est": {},
     "unmapped_ref": {}
    }
