@@ -87,3 +87,10 @@ src-tauri/resources/
 third_party/
 # 피아노 회귀 고정 샘플(원본 wav에서 재생성, sha256은 eval/RESULTS.md에 기록)
 eval/fixtures/*.wav
+
+# 2026-10-25 overnight: 격리 venv(분리기·비트·f0·데이터 도구)와 원본 데이터/샘플 아카이브(공식 출처에서 재다운로드)
+.venv-sep/
+.venv-beat/
+.venv-f0/
+.venv-data/
+/data/
