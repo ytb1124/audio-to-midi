@@ -36,6 +36,8 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 sys.path.insert(0, str(ROOT / "backend" / "scripts"))
 from bass_pitch_bend import BendParams, compute_bends  # noqa: E402
+sys.path.insert(0, str(HERE))
+from run_heldout import bootstrap_ci  # noqa: E402
 
 RUNS = HERE / "runs"
 F0_DIR = RUNS / "_f0"
@@ -240,13 +242,19 @@ def cmd_tune(args) -> int:
 
 def cmd_test(args) -> int:
     best = json.loads((OUT_DIR / "best_configs.json").read_text())
-    res = {"baseline": summarize(evaluate(args.set, None, BendParams()))}
-    per = {"baseline": evaluate(args.set, None, BendParams())}
+    out = OUT_DIR / f"test_{args.set}.json"
+    prev = json.loads(out.read_text()) if out.exists() else {"summary": {}, "per_song": {}}
+    res, per = prev["summary"], prev["per_song"]
+    res["baseline"] = summarize(evaluate(args.set, None, BendParams()))
+    per["baseline"] = evaluate(args.set, None, BendParams())
     for method, cfg in best.items():
+        if args.methods and method not in args.methods:
+            continue
+        if method in res:  # 후보마다 1회: 이미 채점한 후보는 다시 돌리지 않는다
+            continue
         p = BendParams(**cfg["params"])
         per[method] = evaluate(args.set, method, p)
         res[method] = summarize(per[method])
-    out = OUT_DIR / f"test_{args.set}.json"
     out.write_text(json.dumps({"summary": res, "per_song": per}, indent=2, default=float))
     for k, v in res.items():
         print(f"{k:10s} F1={v['f1']:.3f} P={v['precision']:.3f} R={v['recall']:.3f} "
@@ -282,6 +290,84 @@ def cmd_labelcheck(args) -> int:
     return 0
 
 
+REAL = {  # 평가 2: 실녹음(정답 MIDI 없음). 노트 골격은 현행 베이스 파이프라인 출력.
+    "Bass_2": (ROOT.parent / "sample audio" / "bass sample" / "Bass_2.wav", ROOT / "eval" / "runs" / "mtlB_bass2" / "bass_hybrid.mid"),
+    "Mosquito": (ROOT / "uploads" / "0e987dac-fdb4-44a2-81b6-44b140c99219.wav", ROOT / "eval" / "runs" / "mtlB_mosquito" / "bass_hybrid.mid"),
+}
+REF_METHODS = ["pyin", "crepe", "rmvpe", "pesto"]
+
+
+def cmd_real_f0(args) -> int:
+    for method in args.methods:
+        py = ROOT / (".venv-backend" if method == "basicpitch" else ".venv-f0") / "bin" / "python"
+        for name, (audio, _) in REAL.items():
+            out = f0_path(method, "real", name)
+            if not out.exists():
+                subprocess.run([str(py), "-W", "ignore", str(ROOT / "backend/scripts/bass_f0_tracks.py"),
+                                str(audio), str(out), "--method", method], check=True, capture_output=True)
+                print(method, name, flush=True)
+    return 0
+
+
+def _ref_curve(name: str, exclude: str, grid: np.ndarray) -> np.ndarray:
+    """평가 대상 추출기를 뺀 나머지의 f0 중앙값(Hz, 무성은 nan) — 순환 평가를 피한다."""
+    cols = []
+    for m in REF_METHODS:
+        if m == exclude:
+            continue
+        z = np.load(f0_path(m, "real", name))
+        f = np.where((z["f0"] > 0) & (z["conf"] >= {"rmvpe": 0.2, "pesto": 0.5}.get(m, 0.5)), z["f0"], np.nan)
+        cols.append(np.interp(grid, z["t"], f, left=np.nan, right=np.nan))
+    c = np.vstack(cols)
+    # 다수(과반)가 유성일 때만 쓰고, 옥타브가 엇갈리면 중앙값이 망가지므로 log 영역 중앙값
+    ok = np.sum(~np.isnan(c), axis=0) >= max(2, len(cols) // 2 + 1)
+    med = np.exp(np.nanmedian(np.log(c), axis=0))
+    return np.where(ok, med, np.nan)
+
+
+def cmd_real(args) -> int:
+    """평가 2: 렌더 피치(노트 피치 + 벤드)와 오디오 f0의 cent 오차.
+    방법 m마다 기준 f0 = m을 뺀 나머지 추출기의 중앙값(순환 방지). 같은 기준·같은 노트에서
+    기준선(벤드 없음)과 m을 짝지어 비교한다. 안정 노트(기준 f0가 노트 피치 ±30c 안에 80% 이상) = 무벤드 노트."""
+    best = json.loads((OUT_DIR / "best_configs.json").read_text())
+    rows = {}
+    for method, cfg in best.items():
+        p = BendParams(**cfg["params"])
+        pairs = {"stable": [], "moving": []}
+        for name, (audio, mid) in REAL.items():
+            pm = pretty_midi.PrettyMIDI(str(mid))
+            notes = sorted(((n.start, n.end, n.pitch) for i in pm.instruments if not i.is_drum for n in i.notes))
+            z = np.load(f0_path(method, "real", name))
+            bends = compute_bends(notes, z["t"], z["f0"], z["conf"], p)
+            for i, (s0, e, pitch) in enumerate(notes):
+                g = np.arange(s0 + 0.03, e, GRID)
+                if len(g) < 3:
+                    continue
+                ref = _ref_curve(name, method, g)
+                m = ~np.isnan(ref)
+                if m.mean() < 0.5:
+                    continue
+                rc = 1200 * np.log2(ref[m] / (440 * 2 ** ((pitch - 69) / 12)))
+                rc = rc - 1200 * np.round(rc / 1200)
+                est = np.zeros(len(g))
+                if i in bends:
+                    tt, cv = bends[i]
+                    est = np.interp(g, tt, cv)
+                kind = "stable" if np.mean(np.abs(rc) <= 30) >= 0.8 else "moving"
+                pairs[kind].append((float(np.mean(np.abs(rc))), float(np.mean(np.abs(est[m] - rc)))))
+        rows[method] = {}
+        for kind, v in pairs.items():
+            a = np.array(v)
+            d = a[:, 1] - a[:, 0]
+            lo, hi = bootstrap_ci(d)
+            rows[method][kind] = {"n": len(a), "baseline": float(a[:, 0].mean()), "method": float(a[:, 1].mean()),
+                                  "diff": float(d.mean()), "ci": [lo, hi]}
+            print(f"{method:8s} {kind:6s} n={len(a):4d} 기준선 {a[:, 0].mean():6.2f}c → {a[:, 1].mean():6.2f}c "
+                  f"(차이 {d.mean():+.2f} [{lo:+.2f}, {hi:+.2f}])")
+    (OUT_DIR / "real_eval.json").write_text(json.dumps(rows, indent=2))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -293,11 +379,16 @@ def main() -> int:
     t.add_argument("--methods", nargs="+", default=METHODS)
     s = sub.add_parser("test")
     s.add_argument("--set", required=True)
+    s.add_argument("--methods", nargs="*")
     lc = sub.add_parser("labelcheck")
     lc.add_argument("--set", required=True)
     lc.add_argument("--method", default="pyin")
+    rf = sub.add_parser("real_f0")
+    rf.add_argument("--methods", nargs="+", default=METHODS)
+    sub.add_parser("real")
     args = ap.parse_args()
-    return {"f0": cmd_f0, "tune": cmd_tune, "test": cmd_test, "labelcheck": cmd_labelcheck}[args.cmd](args)
+    return {"f0": cmd_f0, "tune": cmd_tune, "test": cmd_test, "labelcheck": cmd_labelcheck,
+            "real_f0": cmd_real_f0, "real": cmd_real}[args.cmd](args)
 
 
 if __name__ == "__main__":

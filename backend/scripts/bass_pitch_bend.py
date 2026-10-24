@@ -25,14 +25,16 @@ BEND_RANGE_SEMITONES = 2  # RPN 0 기본값과 같다. 프론트/DAW 재생이 �
 
 @dataclass
 class BendParams:
-    smooth_ms: float = 60.0
-    deadband: float = 35.0       # cent
-    min_bend: float = 80.0       # cent, 벤드 노트 판정 문턱
+    # 기본값 = pYIN의 개발셋(dev_bends_up) 최적값. 테스트(bendtest_up) 1회: F1 0.813, 벤드 곡선 오차
+    # 91.9 → 31.7 cent, 무벤드 노트 0.17 cent. 실녹음(Bass_2·Mosquito) 안정 노트 오차 악화 없음 — eval/BEST_RESULTS.md
+    smooth_ms: float = 30.0
+    deadband: float = 35.0       # cent: 이보다 작은 흔들림은 0으로 둔다
+    min_bend: float = 50.0       # cent, 벤드 노트 판정 문턱(slide_only일 때)
     min_dur_ms: float = 40.0     # 문턱 이상이 이어져야 하는 길이
     attack_skip_ms: float = 30.0  # 어택 직후 f0는 불안정하므로 무시
-    min_conf: float = 0.5
+    min_conf: float = 0.05       # pYIN voiced 확률
     min_voiced_frac: float = 0.5
-    slide_only: bool = True
+    slide_only: bool = False     # 개발셋에서 데드밴드만으로 무벤드 흔들림 조건(≤2 cent)을 만족했다
     step_cents: float = 5.0      # 이벤트 간소화: 이 이상 바뀔 때만 기록
 
 
