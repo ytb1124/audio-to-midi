@@ -94,7 +94,7 @@ def build_parser() -> argparse.ArgumentParser:
     transcribe_parser.add_argument(
         "--backend",
         default=None,
-        help="bass/general: basicpitch|yourmt3, drums: egmd|adtof (기본값은 환경변수 또는 첫 값)",
+        help="bass/general: basicpitch|yourmt3|yourmt3_hybrid, drums: adtof|egmd (기본값: pipeline.DEFAULT_BACKENDS, 환경변수로 변경)",
     )
 
     separate_parser = subparsers.add_parser(

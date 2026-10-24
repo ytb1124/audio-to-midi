@@ -133,7 +133,8 @@ def process_job(job_id: str, input_audio: Path, mode: str, backend: str | None =
             job_id,
             progress=100,
             status="Done.",
-            result=_web_midi_result(job_id, result),
+            # drums는 분리 스템 경로(로컬 절대경로)를 URL로 바꿔야 한다.
+            result=(_web_drum_result if mode == "drums" else _web_midi_result)(job_id, result),
         )
     except subprocess.CalledProcessError as error:
         update_job(

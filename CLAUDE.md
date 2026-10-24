@@ -26,6 +26,7 @@
 - `POST /api/drums` (multipart: `file`, `separate`="true"|"false") → `{ jobId }`. `result` = `{ midiUrl, midiFileName, mode:"drums", counts:{kick,snare,hihat}, drumsStemUrl? }`. (research 2번, Drum ADT)
 - **(2026-10-24 추가, 하위호환)** `/api/transcribe`·`/api/drums`에 선택 필드 `backend`: bass=`basicpitch`(기본)|`yourmt3`|`yourmt3_hybrid`, general=`basicpitch`|`yourmt3`, drums=`adtof`(기본, 2026-10-24 변경)|`egmd`. `result.backend`=실제 사용 엔진(격리 venv 없거나 실패 시 기본 엔진으로 폴백), `result.requestedBackend`=요청값. `eval/RESULTS.md`의 "새 엔진이 낮다"는 in-sample 개발셋 결과였고, 홀드아웃(처음 보는 실제 믹스)에서 뒤집혔다 — 아래 항목과 `eval/heldout/`.
 - **★ (2026-10-24) 드럼 기본값 `adtof`로 변경 — 연구용 결정**: 홀드아웃 실제 녹음(MDB Drums 23곡) 5클래스 F1 0.546 → **0.859**(곡별 차이 95% CI +0.25~+0.38), 심벌 0.00 → 0.68. 재현: `eval/heldout/run_heldout.py`. **API 응답 변화(프론트 작업자 확인 필요)**: ADTOF 경로의 `counts` 키는 `{kick, snare, hihat, tom, cymbal}` 5개다(egmd 경로는 기존 9-class 키). ADTOF는 오픈/클로즈 하이햇·crash/ride를 구분하지 않는다(GM 36/38/42/45/49만 출력). velocity는 `backend/scripts/drum_velocity.py`로 어택 dB 매핑(egmd와 같은 방식). 격리 venv(`.venv-adtof`)가 없으면 egmd로 폴백하고 `result.backend="egmd"`. **ADTOF는 CC BY-NC-SA(비상업)** — 상업 배포 시 `DRUMS_BACKEND=egmd`로 되돌릴 것. 피아노 회귀 sha256 일치 확인.
+- **(2026-10-24) `/api/transcribe` mode=drums도 분리 후 전사**: `pipeline.transcribe("drums")`가 `separate=True`로 바뀌었다(데스크톱 앱 CLI가 이 경로를 쓴다). 믹스를 그대로 넣으면 E-GMD 분류기 홀드아웃 F1 0.26. 이제 이 경로의 응답에도 `drumsStemUrl`이 들어간다(`/api/drums`와 같은 shape). 데스크톱 사이드카에는 격리 venv가 없어 드럼은 egmd로 폴백한다.
 - 모든 job은 같은 폴링 엔드포인트/shape 공유. stem/오디오 산출물은 `http://localhost:8000/outputs/{jobId}/...`로 서빙.
 
 ## 모드별 상태

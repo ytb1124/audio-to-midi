@@ -416,8 +416,11 @@ def transcribe(
     elif mode == "bass":
         result = run_bass_mode(input_audio, output_dir, progress, backend=backend)
     elif mode == "drums":
+        # /api/drums와 같이 기본으로 분리한다(2026-10-24). 믹스를 그대로 넣으면 E-GMD 분류기는
+        # 홀드아웃 F1이 0.26으로 무너지고(eval/heldout/RESULTS_HELDOUT.md), 드럼 단독 오디오는
+        # 분리해도 거의 그대로 통과한다(CLAUDE.md B-0). 데스크톱 앱이 이 경로를 쓴다.
         result = run_drums_mode(
-            input_audio, output_dir, progress, separate=False, backend=backend
+            input_audio, output_dir, progress, separate=True, backend=backend
         )
     elif mode == "general":
         result = run_general_mode(input_audio, output_dir, progress, backend=backend)
