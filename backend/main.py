@@ -22,7 +22,7 @@ from . import pipeline
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
-DEFAULT_ALLOWED_ORIGINS = ["http://localhost:3000"]
+DEFAULT_ALLOWED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 
 def _parse_allowed_origins(raw_origins: str | None) -> list[str]:

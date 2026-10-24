@@ -73,9 +73,9 @@ fn start_python_job(
   let python = project_root.join(".venv-backend/bin/python");
   let cli = project_root.join("backend/cli.py");
   let sidecar = bundled_sidecar(&app, &project_root);
-  if sidecar.is_none() && (!python.is_file() || !cli.is_file()) {
+  if sidecar.is_none() && (!cfg!(debug_assertions) || !python.is_file() || !cli.is_file()) {
     return Err(format!(
-      "Trackform sidecar not found and development Python is unavailable. Expected sidecar under {}/dist/trackform-backend.",
+      "Trackform sidecar not found. Expected sidecar under {}/dist/trackform-backend.",
       project_root.display()
     ));
   }
@@ -96,6 +96,9 @@ fn start_python_job(
   let mut command = if let Some(sidecar) = sidecar {
     let mut command = Command::new(sidecar);
     command.arg(&kind);
+    if let Ok(resource_dir) = app.path().resource_dir() {
+      command.env("TRACKFORM_RESOURCE_DIR", resource_dir);
+    }
     command
   } else {
     let mut command = Command::new(&python);

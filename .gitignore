@@ -77,3 +77,6 @@ eval/_loso_models/
 eval/_egmd_cache/
 .claude/
 app/_archive/
+
+# 번들된 ffmpeg 바이너리(packaging/bundle_ffmpeg.py로 재생성)
+src-tauri/resources/

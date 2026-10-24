@@ -172,7 +172,24 @@ if __name__ == "__main__":
         bundle_root = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
         bundled_hf_home = bundle_root / "models" / "huggingface"
         if bundled_hf_home.exists():
-            os.environ.setdefault("HF_HOME", str(bundled_hf_home))
+            os.environ["HF_HOME"] = str(bundled_hf_home)
+            os.environ["HF_HUB_OFFLINE"] = "1"
+            os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+        resource_root = Path(
+            os.environ.get("TRACKFORM_RESOURCE_DIR", str(bundle_root))
+        )
+        ffmpeg_candidates = (
+            resource_root / "ffmpeg" / "bin" / "ffmpeg",
+            resource_root / "resources" / "ffmpeg" / "bin" / "ffmpeg",
+            bundle_root / "ffmpeg" / "bin" / "ffmpeg",
+        )
+        for ffmpeg in ffmpeg_candidates:
+            if ffmpeg.is_file():
+                os.environ["TRACKFORM_FFMPEG"] = str(ffmpeg)
+                os.environ["IMAGEIO_FFMPEG_EXE"] = str(ffmpeg)
+                os.environ["PATH"] = f"{ffmpeg.parent}:{os.environ.get('PATH', '')}"
+                break
 
         if _dispatch_frozen_worker():
             raise SystemExit(0)
