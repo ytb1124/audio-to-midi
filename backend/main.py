@@ -22,7 +22,7 @@ from . import pipeline
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
-DEFAULT_ALLOWED_ORIGINS = ["http://localhost:3000"]
+DEFAULT_ALLOWED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 
 def _parse_allowed_origins(raw_origins: str | None) -> list[str]:
@@ -119,7 +119,7 @@ def _web_drum_result(job_id: str, result: dict) -> dict:
     return web_result
 
 
-def process_job(job_id: str, input_audio: Path, mode: str):
+def process_job(job_id: str, input_audio: Path, mode: str, backend: str | None = None):
     job_output_dir = OUTPUT_DIR / job_id
     try:
         result = pipeline.transcribe(
@@ -127,6 +127,7 @@ def process_job(job_id: str, input_audio: Path, mode: str):
             input_audio=input_audio,
             output_dir=job_output_dir,
             progress=_progress_callback(job_id),
+            backend=backend,
         )
         update_job(
             job_id,
@@ -171,7 +172,9 @@ def process_separate_job(job_id: str, input_audio: Path, model: str):
         update_job(job_id, progress=100, status="Error.", error=str(error))
 
 
-def process_drums_job(job_id: str, input_audio: Path, separate: bool):
+def process_drums_job(
+    job_id: str, input_audio: Path, separate: bool, backend: str | None = None
+):
     job_output_dir = OUTPUT_DIR / job_id
     try:
         result = pipeline.run_drums_mode(
@@ -179,6 +182,7 @@ def process_drums_job(job_id: str, input_audio: Path, separate: bool):
             output_dir=job_output_dir,
             progress=_progress_callback(job_id),
             separate=separate,
+            backend=pipeline.resolve_backend("drums", backend),
         )
         update_job(
             job_id,
@@ -201,6 +205,7 @@ def process_drums_job(job_id: str, input_audio: Path, separate: bool):
 async def transcribe(
     file: UploadFile = File(...),
     mode: str = Form("piano"),
+    backend: str | None = Form(None),
 ):
     job_id = str(uuid4())
     original_suffix = Path(file.filename).suffix or ".mp3"
@@ -217,7 +222,7 @@ async def transcribe(
     }
     threading.Thread(
         target=process_job,
-        args=(job_id, input_audio, mode),
+        args=(job_id, input_audio, mode, backend or None),
         daemon=True,
     ).start()
     return {"jobId": job_id}
@@ -253,6 +258,7 @@ async def separate(
 async def drums(
     file: UploadFile = File(...),
     separate: str = Form("true"),
+    backend: str | None = Form(None),
 ):
     job_id = str(uuid4())
     original_suffix = Path(file.filename).suffix or ".mp3"
@@ -270,7 +276,7 @@ async def drums(
     }
     threading.Thread(
         target=process_drums_job,
-        args=(job_id, input_audio, do_separate),
+        args=(job_id, input_audio, do_separate, backend or None),
         daemon=True,
     ).start()
     return {"jobId": job_id}

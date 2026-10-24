@@ -77,3 +77,13 @@ eval/_loso_models/
 eval/_egmd_cache/
 .claude/
 app/_archive/
+
+# 번들된 ffmpeg 바이너리(packaging/bundle_ffmpeg.py로 재생성)
+src-tauri/resources/
+
+# 격리 모델 venv + 외부 모델 코드/체크포인트(공식 저장소에서 재다운로드 — eval/RESULTS.md 참고)
+.venv-yourmt3/
+.venv-adtof/
+third_party/
+# 피아노 회귀 고정 샘플(원본 wav에서 재생성, sha256은 eval/RESULTS.md에 기록)
+eval/fixtures/*.wav

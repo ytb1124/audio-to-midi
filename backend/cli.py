@@ -91,6 +91,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     transcribe_parser.add_argument("--input", required=True, type=Path)
     transcribe_parser.add_argument("--output-dir", required=True, type=Path)
+    transcribe_parser.add_argument(
+        "--backend",
+        default=None,
+        help="bass/general: basicpitch|yourmt3, drums: egmd|adtof (기본값은 환경변수 또는 첫 값)",
+    )
 
     separate_parser = subparsers.add_parser(
         "separate", help="Separate audio into Demucs stems"
@@ -112,6 +117,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             input_audio=input_audio,
             output_dir=output_dir,
             progress=progress_event,
+            backend=args.backend,
         )
 
     return pipeline.separate(
@@ -143,6 +149,8 @@ def main() -> int:
                 "midiPath": result["midiPath"],
                 "midiFileName": result["midiFileName"],
             }
+            if "backend" in result:
+                completed["backend"] = result["backend"]
             if "counts" in result:
                 completed["counts"] = result["counts"]
             if "drumsStemPath" in result:
@@ -172,7 +180,24 @@ if __name__ == "__main__":
         bundle_root = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
         bundled_hf_home = bundle_root / "models" / "huggingface"
         if bundled_hf_home.exists():
-            os.environ.setdefault("HF_HOME", str(bundled_hf_home))
+            os.environ["HF_HOME"] = str(bundled_hf_home)
+            os.environ["HF_HUB_OFFLINE"] = "1"
+            os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+        resource_root = Path(
+            os.environ.get("TRACKFORM_RESOURCE_DIR", str(bundle_root))
+        )
+        ffmpeg_candidates = (
+            resource_root / "ffmpeg" / "bin" / "ffmpeg",
+            resource_root / "resources" / "ffmpeg" / "bin" / "ffmpeg",
+            bundle_root / "ffmpeg" / "bin" / "ffmpeg",
+        )
+        for ffmpeg in ffmpeg_candidates:
+            if ffmpeg.is_file():
+                os.environ["TRACKFORM_FFMPEG"] = str(ffmpeg)
+                os.environ["IMAGEIO_FFMPEG_EXE"] = str(ffmpeg)
+                os.environ["PATH"] = f"{ffmpeg.parent}:{os.environ.get('PATH', '')}"
+                break
 
         if _dispatch_frozen_worker():
             raise SystemExit(0)

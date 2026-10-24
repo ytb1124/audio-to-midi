@@ -58,25 +58,28 @@ for package in ("torch", "torchaudio", "demucs", "transkun", "basic_pitch"):
 # is absent, Demucs keeps its existing download behavior.
 demucs_cache = Path.home() / ".cache/huggingface/hub/models--adefossez--HTDemucs"
 demucs_snapshot = "cbc8a9b1a87023b7fd74e7b3412e6321c0eab003"
-if demucs_cache.exists():
-    snapshot_dir = demucs_cache / "snapshots" / demucs_snapshot
-    for file_name in ("htdemucs.yaml", "955717e8.safetensors"):
-        source = snapshot_dir / file_name
-        if source.exists():
-            datas.append(
-                (
-                    str(source),
-                    f"models/huggingface/hub/models--adefossez--HTDemucs/snapshots/{demucs_snapshot}",
-                )
-            )
-    refs_main = demucs_cache / "refs" / "main"
-    if refs_main.exists():
-        datas.append(
-            (
-                str(refs_main),
-                "models/huggingface/hub/models--adefossez--HTDemucs/refs",
-            )
+snapshot_dir = demucs_cache / "snapshots" / demucs_snapshot
+required_demucs_files = [snapshot_dir / "htdemucs.yaml", snapshot_dir / "955717e8.safetensors"]
+if not all(path.exists() for path in required_demucs_files):
+    raise SystemExit(
+        "Bundled HT-Demucs cache is incomplete. Build requires the local model "
+        f"snapshot at {snapshot_dir}."
+    )
+for source in required_demucs_files:
+    datas.append(
+        (
+            str(source),
+            f"models/huggingface/hub/models--adefossez--HTDemucs/snapshots/{demucs_snapshot}",
         )
+    )
+refs_main = demucs_cache / "refs" / "main"
+if refs_main.exists():
+    datas.append(
+        (
+            str(refs_main),
+            "models/huggingface/hub/models--adefossez--HTDemucs/refs",
+        )
+    )
 
 # Avoid duplicate entries introduced by collect_all + collect_submodules.
 datas = list(dict.fromkeys(datas))
