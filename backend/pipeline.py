@@ -34,6 +34,11 @@ DRUM_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "drum_audio_to_midi.py"
 YOURMT3_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "yourmt3_transcribe.py"
 ADTOF_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "adtof_transcribe.py"
 DRUM_VELOCITY_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "drum_velocity.py"
+BEAT_GRID_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "beat_grid.py"
+PITCH_BEND_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "bass_pitch_bend.py"
+NOTE_VELOCITY_SCRIPT_PATH = BASE_DIR / "backend" / "scripts" / "note_velocity.py"
+# 피치 벤드 f0 추출기(eval/heldout/pitchbend_eval.py 홀드아웃 결과로 선택). 환경변수로 바꿀 수 있다.
+PITCH_BEND_METHOD = os.environ.get("PITCH_BEND_METHOD", "pyin")
 
 
 def _py() -> str:
@@ -172,6 +177,12 @@ def _try_yourmt3(
     if not final_midi.exists():
         return None
     info = _last_json_line(completed.stdout)
+    # YourMT3+는 벨로시티를 상수로 낸다. 오디오 어택 에너지로 다시 매긴다(R6 홀드아웃: Slakh 정답 대비
+    # Spearman ρ 0 → 0.268 [0.055, 0.466]). 실패해도 노트는 유효하므로 경고만 남긴다.
+    try:
+        _run(_script_cmd(NOTE_VELOCITY_SCRIPT_PATH, str(input_audio), str(final_midi)))
+    except (subprocess.CalledProcessError, OSError) as error:
+        print(f"Velocity mapping failed ({error}); keeping YourMT3+ velocities.", file=sys.stderr)
     return {
         "midiPath": str(final_midi.resolve()),
         "midiFileName": final_midi.name,
@@ -270,20 +281,34 @@ def run_general_mode(
     }
 
 
+def _adtof_cmd() -> list[str] | None:
+    """ADTOF 실행 명령. 소스 실행은 격리 venv, 데스크톱(frozen)은 함께 번들된 PyInstaller 워커
+    (dist/trackform-adtof, packaging/trackform-adtof.spec). 둘 다 없으면 None(→ E-GMD 폴백)."""
+    py = _isolated_py(".venv-adtof")
+    if py is not None and ADTOF_SCRIPT_PATH.exists():
+        return [py, str(ADTOF_SCRIPT_PATH)]
+    if getattr(sys, "frozen", False):
+        sidecar_dir = Path(sys.executable).resolve().parent
+        worker = sidecar_dir.parent / "trackform-adtof" / "trackform-adtof"
+        if worker.exists():
+            return [str(worker)]
+    return None
+
+
 def _try_adtof(
     adt_input: Path,
     output_dir: Path,
     progress: ProgressCallback | None,
 ) -> dict | None:
     """ADTOF(Frame_RNN)로 드럼을 전사한다. 격리 venv가 없거나 실패하면 None(→ 기존 분류기)."""
-    py = _isolated_py(".venv-adtof")
-    if py is None or not ADTOF_SCRIPT_PATH.exists():
-        print("ADTOF venv not found; using E-GMD classifier.", file=sys.stderr)
+    cmd = _adtof_cmd()
+    if cmd is None:
+        print("ADTOF venv/worker not found; using E-GMD classifier.", file=sys.stderr)
         return None
     drum_midi = output_dir / "drums_adtof.mid"
     _emit(progress, 65, "Transcribing drums with ADTOF...")
     try:
-        completed = _run([py, str(ADTOF_SCRIPT_PATH), str(adt_input), str(drum_midi)])
+        completed = _run([*cmd, str(adt_input), str(drum_midi)])
     except (subprocess.CalledProcessError, OSError) as error:
         print(f"ADTOF failed ({error}); using E-GMD classifier.", file=sys.stderr)
         return None
@@ -403,6 +428,9 @@ def transcribe(
     output_dir: Path,
     progress: ProgressCallback | None = None,
     backend: str | None = None,
+    beat_grid: bool = False,
+    quantize: float = 0.0,
+    pitch_bend: bool = False,
 ) -> dict:
     """Run one of the four supported MIDI conversion modes."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -431,7 +459,62 @@ def transcribe(
         result.setdefault("backend", NOTE_BACKENDS[0] if mode != "drums" else DRUM_BACKENDS[0])
         result["requestedBackend"] = backend
 
+    result = apply_post_options(
+        result, mode, input_audio, output_dir, progress,
+        beat_grid=beat_grid, quantize=quantize, pitch_bend=pitch_bend,
+    )
     _emit(progress, 100, "Done.")
+    return result
+
+
+def apply_post_options(
+    result: dict,
+    mode: str,
+    input_audio: Path,
+    output_dir: Path,
+    progress: ProgressCallback | None = None,
+    beat_grid: bool = False,
+    quantize: float = 0.0,
+    pitch_bend: bool = False,
+) -> dict:
+    """opt-in 후처리(2026-10-25). 모두 꺼져 있으면 result를 그대로 돌려준다(기존 출력과 바이트 단위 동일).
+
+    - pitch_bend(bass 전용): 단성 베이스 MIDI에 오디오 f0 기반 피치 벤드(±2반음)를 기록한다.
+    - beat_grid: 원본 오디오의 비트·다운비트로 MIDI에 템포 맵을 기록한다. quantize(0~1)는 노트 시작을
+      16분 격자로 당기는 강도이며 기본 0(노트 시각 불변). 피아노 경로 코드는 건드리지 않고 그 출력에만 적용한다.
+    실패해도 원래 MIDI는 유효하므로 경고만 남기고 원래 결과를 돌려준다.
+    """
+    midi_path = Path(result["midiPath"])
+    if pitch_bend and mode == "bass":
+        bent = midi_path.with_name(midi_path.stem + "_bend.mid")
+        _emit(progress, 92, "Adding pitch bends from the audio pitch curve...")
+        try:
+            completed = _run(_script_cmd(PITCH_BEND_SCRIPT_PATH, str(input_audio), str(midi_path), str(bent),
+                                         "--method", PITCH_BEND_METHOD))
+            if bent.exists():
+                midi_path = bent
+                result["pitchBend"] = _last_json_line(completed.stdout)
+        except (subprocess.CalledProcessError, OSError) as error:
+            print(f"Pitch bend failed ({error}); keeping MIDI without bends.", file=sys.stderr)
+    if beat_grid:
+        gridded = midi_path.with_name(midi_path.stem + "_grid.mid")
+        beats_json = output_dir / "beats.json"
+        _emit(progress, 95, "Tracking beats and writing the tempo map...")
+        try:
+            completed = _run(_script_cmd(BEAT_GRID_SCRIPT_PATH, str(input_audio), str(midi_path), str(gridded),
+                                         "--quantize", f"{max(0.0, min(1.0, float(quantize))):.3f}",
+                                         "--save-beats", str(beats_json)))
+            if gridded.exists():
+                midi_path = gridded
+                info = _last_json_line(completed.stdout)
+                if beats_json.exists():
+                    info.update(json.loads(beats_json.read_text()))
+                result["beatGrid"] = info
+        except (subprocess.CalledProcessError, OSError) as error:
+            print(f"Beat grid failed ({error}); keeping MIDI without tempo map.", file=sys.stderr)
+    if midi_path != Path(result["midiPath"]):
+        result["midiPath"] = str(midi_path.resolve())
+        result["midiFileName"] = midi_path.name
     return result
 
 

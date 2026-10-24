@@ -21,6 +21,7 @@ hiddenimports = [
     "transkun.transcribe",
     "demucs.separate",
     "basic_pitch.predict",
+    "beat_this.inference",
 ]
 
 # These packages use dynamic imports and/or ship native libraries and model data.
@@ -42,6 +43,9 @@ for package in (
     "mido",
     "numba",
     "llvmlite",
+    "beat_this",
+    "rotary_embedding_torch",
+    "einops",
 ):
     package_datas, package_binaries, package_hiddenimports = collect_all(package)
     datas.extend(package_datas)
@@ -51,6 +55,13 @@ for package in (
 # A few optional backends are loaded by name at runtime.
 for package in ("torch", "torchaudio", "demucs", "transkun", "basic_pitch"):
     hiddenimports.extend(collect_submodules(package))
+
+# Beat This! checkpoint for the opt-in beat grid (offline). Downloaded once by beat_this into the
+# torch hub cache; required so the desktop app never fetches it at runtime.
+beat_this_ckpt = Path.home() / ".cache/torch/hub/checkpoints/beat_this-final0.ckpt"
+if not beat_this_ckpt.exists():
+    raise SystemExit(f"Beat This! checkpoint missing: {beat_this_ckpt}")
+datas.append((str(beat_this_ckpt), "models"))
 
 # Demucs resolves HT-Demucs through the Hugging Face cache. Include the cache
 # files as regular files so the sidecar can run offline without relying on a

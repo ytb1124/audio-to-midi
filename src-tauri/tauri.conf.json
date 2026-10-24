@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Trackform",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "com.trackform.desktop",
   "build": {
     "frontendDist": "../out",
@@ -24,7 +24,9 @@
     "security": {
       "assetProtocol": {
         "enable": true,
-        "scope": ["$TEMP/**"]
+        "scope": [
+          "$TEMP/**"
+        ]
       },
       "csp": null
     }
@@ -34,6 +36,7 @@
     "targets": "all",
     "resources": [
       "../dist/trackform-backend",
+      "../dist/trackform-adtof",
       "resources/ffmpeg"
     ],
     "icon": [
