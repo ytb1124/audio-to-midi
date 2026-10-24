@@ -21,7 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
-PPQ = 480
+PPQ = 960  # 틱 반올림 오차를 줄인다(q=0에서 노트 시각 차이 ≤ ~0.4 ms)
 ROOT = Path(__file__).resolve().parents[2]
 TRACKER_SCRIPT = Path(__file__).resolve().parent / "beat_track.py"
 
@@ -39,7 +39,18 @@ def track_beats(audio: str, tracker: str | None = None) -> dict:
             out["tracker"] = tracker
             return out
         except (subprocess.CalledProcessError, OSError, IndexError, ValueError) as error:
-            print(f"{tracker} beat tracking failed ({error}); using librosa.", file=sys.stderr)
+            print(f"{tracker} beat tracking failed ({error}); trying in-process Beat This!.", file=sys.stderr)
+    # 데스크톱(frozen) 사이드카: 격리 venv가 없으므로 같은 프로세스에서 Beat This!를 돌린다.
+    # 체크포인트는 사이드카에 동봉(models/beat_this-final0.ckpt)해 오프라인으로 동작한다.
+    try:
+        from beat_this.inference import File2Beats
+
+        bundled = Path(getattr(sys, "_MEIPASS", ROOT)) / "models" / "beat_this-final0.ckpt"
+        ckpt = os.environ.get("BEAT_THIS_CKPT") or (str(bundled) if bundled.exists() else "final0")
+        beats, downbeats = File2Beats(checkpoint_path=ckpt, device="cpu", dbn=False)(audio)
+        return {"beats": [float(x) for x in beats], "downbeats": [float(x) for x in downbeats], "tracker": "beat_this"}
+    except Exception as error:  # noqa: BLE001 — 비트 추적이 실패해도 변환은 유지
+        print(f"In-process Beat This! failed ({error}); using librosa.", file=sys.stderr)
     import librosa
 
     y, sr = librosa.load(audio, sr=22050, mono=True)

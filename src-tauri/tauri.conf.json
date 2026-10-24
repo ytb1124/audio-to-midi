@@ -24,7 +24,9 @@
     "security": {
       "assetProtocol": {
         "enable": true,
-        "scope": ["$TEMP/**"]
+        "scope": [
+          "$TEMP/**"
+        ]
       },
       "csp": null
     }
@@ -34,6 +36,7 @@
     "targets": "all",
     "resources": [
       "../dist/trackform-backend",
+      "../dist/trackform-adtof",
       "resources/ffmpeg"
     ],
     "icon": [

@@ -274,20 +274,34 @@ def run_general_mode(
     }
 
 
+def _adtof_cmd() -> list[str] | None:
+    """ADTOF 실행 명령. 소스 실행은 격리 venv, 데스크톱(frozen)은 함께 번들된 PyInstaller 워커
+    (dist/trackform-adtof, packaging/trackform-adtof.spec). 둘 다 없으면 None(→ E-GMD 폴백)."""
+    py = _isolated_py(".venv-adtof")
+    if py is not None and ADTOF_SCRIPT_PATH.exists():
+        return [py, str(ADTOF_SCRIPT_PATH)]
+    if getattr(sys, "frozen", False):
+        sidecar_dir = Path(sys.executable).resolve().parent
+        worker = sidecar_dir.parent / "trackform-adtof" / "trackform-adtof"
+        if worker.exists():
+            return [str(worker)]
+    return None
+
+
 def _try_adtof(
     adt_input: Path,
     output_dir: Path,
     progress: ProgressCallback | None,
 ) -> dict | None:
     """ADTOF(Frame_RNN)로 드럼을 전사한다. 격리 venv가 없거나 실패하면 None(→ 기존 분류기)."""
-    py = _isolated_py(".venv-adtof")
-    if py is None or not ADTOF_SCRIPT_PATH.exists():
-        print("ADTOF venv not found; using E-GMD classifier.", file=sys.stderr)
+    cmd = _adtof_cmd()
+    if cmd is None:
+        print("ADTOF venv/worker not found; using E-GMD classifier.", file=sys.stderr)
         return None
     drum_midi = output_dir / "drums_adtof.mid"
     _emit(progress, 65, "Transcribing drums with ADTOF...")
     try:
-        completed = _run([py, str(ADTOF_SCRIPT_PATH), str(adt_input), str(drum_midi)])
+        completed = _run([*cmd, str(adt_input), str(drum_midi)])
     except (subprocess.CalledProcessError, OSError) as error:
         print(f"ADTOF failed ({error}); using E-GMD classifier.", file=sys.stderr)
         return None
