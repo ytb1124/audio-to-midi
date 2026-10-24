@@ -97,6 +97,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="bass/general: basicpitch|yourmt3|yourmt3_hybrid, drums: adtof|egmd (기본값: pipeline.DEFAULT_BACKENDS, 환경변수로 변경)",
     )
 
+    transcribe_parser.add_argument(
+        "--beat-grid", action="store_true",
+        help="원본 오디오의 비트로 MIDI에 템포 맵을 기록한다(opt-in)",
+    )
+    transcribe_parser.add_argument(
+        "--quantize", type=float, default=0.0,
+        help="--beat-grid와 함께: 노트 시작을 16분 격자로 당기는 강도 0~1(기본 0, 노트 시각 불변)",
+    )
+    transcribe_parser.add_argument(
+        "--pitch-bend", action="store_true",
+        help="bass 전용: 오디오 f0로 피치 벤드(±2반음)를 기록한다(opt-in)",
+    )
+
     separate_parser = subparsers.add_parser(
         "separate", help="Separate audio into Demucs stems"
     )
@@ -118,6 +131,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             output_dir=output_dir,
             progress=progress_event,
             backend=args.backend,
+            beat_grid=args.beat_grid,
+            quantize=args.quantize,
+            pitch_bend=args.pitch_bend,
         )
 
     return pipeline.separate(

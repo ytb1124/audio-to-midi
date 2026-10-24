@@ -27,6 +27,14 @@
 - **(2026-10-24 추가, 하위호환)** `/api/transcribe`·`/api/drums`에 선택 필드 `backend`: bass=`basicpitch`(기본)|`yourmt3`|`yourmt3_hybrid`, general=`basicpitch`|`yourmt3`, drums=`adtof`(기본, 2026-10-24 변경)|`egmd`. `result.backend`=실제 사용 엔진(격리 venv 없거나 실패 시 기본 엔진으로 폴백), `result.requestedBackend`=요청값. `eval/RESULTS.md`의 "새 엔진이 낮다"는 in-sample 개발셋 결과였고, 홀드아웃(처음 보는 실제 믹스)에서 뒤집혔다 — 아래 항목과 `eval/heldout/`.
 - **★ (2026-10-24) 드럼 기본값 `adtof`로 변경 — 연구용 결정**: 홀드아웃 실제 녹음(MDB Drums 23곡) 5클래스 F1 0.546 → **0.859**(곡별 차이 95% CI +0.25~+0.38), 심벌 0.00 → 0.68. 재현: `eval/heldout/run_heldout.py`. **API 응답 변화(프론트 작업자 확인 필요)**: ADTOF 경로의 `counts` 키는 `{kick, snare, hihat, tom, cymbal}` 5개다(egmd 경로는 기존 9-class 키). ADTOF는 오픈/클로즈 하이햇·crash/ride를 구분하지 않는다(GM 36/38/42/45/49만 출력). velocity는 `backend/scripts/drum_velocity.py`로 어택 dB 매핑(egmd와 같은 방식). 격리 venv(`.venv-adtof`)가 없으면 egmd로 폴백하고 `result.backend="egmd"`. **ADTOF는 CC BY-NC-SA(비상업)** — 상업 배포 시 `DRUMS_BACKEND=egmd`로 되돌릴 것. 피아노 회귀 sha256 일치 확인.
 - **(2026-10-24) `/api/transcribe` mode=drums도 분리 후 전사**: `pipeline.transcribe("drums")`가 `separate=True`로 바뀌었다(데스크톱 앱 CLI가 이 경로를 쓴다). 믹스를 그대로 넣으면 E-GMD 분류기 홀드아웃 F1 0.26. 이제 이 경로의 응답에도 `drumsStemUrl`이 들어간다(`/api/drums`와 같은 shape). 데스크톱 사이드카에는 격리 venv가 없어 드럼은 egmd로 폴백한다.
+- **(2026-10-25 추가, 하위호환 opt-in) 박자 격자·퀀타이즈·피치 벤드** — 필드를 보내지 않으면 출력은 이전과 바이트 단위로 같다(피아노 회귀 sha256 일치).
+  - `POST /api/transcribe` 선택 필드: `beatGrid`="true"|"false"(기본 false), `quantize`="0"~"1"(기본 0), `pitchBend`="true"|"false"(기본 false, `mode=bass`에서만 동작). `POST /api/drums`: `beatGrid`, `quantize`.
+  - `beatGrid=true`: 원본 오디오에서 비트·다운비트를 추적(Beat This!, 격리 venv `.venv-beat`; 없으면 librosa 폴백)해 MIDI에 **비트마다 템포 이벤트 + 박자표**를 쓴다. 노트의 실제 시각(초)은 바뀌지 않고 DAW 마디선만 연주에 맞춰진다. 결과 파일 이름은 `*_grid.mid`. `result.beatGrid = {bpm(중앙값), timeSignature:"4/4", beats:[초...], downbeats:[초...], tracker, quantize, subdiv:4, notesMoved, firstBeatTick}`.
+  - `quantize=q`(beatGrid와 함께): 노트 시작을 16분 격자로 q만큼 당긴다(길이 유지, 비트 범위 밖 노트는 그대로). **피아노 기본 0** — 피아노 경로 함수(`run_piano_mode`)는 건드리지 않고 그 출력에만 후처리로 적용한다.
+  - `pitchBend=true`(bass): 단성 베이스 MIDI에 오디오 f0 곡선 기반 pitch bend를 쓴다(±2반음, RPN 0 명시). 벤드로 판정된 노트에만 쓰고 앞뒤를 0으로 되돌린다. 결과 파일 `*_bend.mid`, `result.pitchBend = {bendNotes, notes, method, rangeSemitones:2, params}`. 근거·파라미터: `eval/heldout/pitchbend_eval.py`, `eval/BEST_RESULTS.md`.
+  - CLI: `backend/cli.py transcribe ... --beat-grid --quantize 0.5 --pitch-bend`.
+  - 프론트(에디터): 노트의 pitch bend를 보라색 곡선으로 표시하고 재생하며, 익스포트 시 다시 쓴다(±2반음 가정). 가변 템포 MIDI는 에디터 격자에 템포 중앙값을 쓴다.
+- **(2026-10-25) 드럼 벨로시티 기본 `band`**: `drum_velocity.py`가 노트 클래스별 대역 에너지(킥 30–150 Hz, 스네어 150–4 kHz, 하이햇·심벌 5–16 kHz, 톰 60–500 Hz)로 벨로시티를 매긴다. 홀드아웃(Slakh test 16곡) 정답 대비 Spearman ρ 0.330 → 0.620(paired +0.290 [+0.152, +0.429]). 이전 방식은 `--mode attack`.
 - 모든 job은 같은 폴링 엔드포인트/shape 공유. stem/오디오 산출물은 `http://localhost:8000/outputs/{jobId}/...`로 서빙.
 
 ## 모드별 상태
