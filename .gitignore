@@ -94,3 +94,4 @@ eval/fixtures/*.wav
 .venv-f0/
 .venv-data/
 /data/
+eval/adtof_finetune/weights/

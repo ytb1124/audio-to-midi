@@ -31,6 +31,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("input", type=Path)
     ap.add_argument("output", type=Path)
+    ap.add_argument("--weights", type=Path, help="파인튜닝 가중치(eval/adtof_finetune). 생략하면 공개 adtofAll fold 0")
     args = ap.parse_args()
 
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
@@ -42,6 +43,8 @@ def main() -> int:
     model, hparams = Model.modelFactory(modelName="Frame_RNN", scenario="adtofAll", fold=0)
     if not model.weightLoadedFlag:
         raise RuntimeError("ADTOF weights failed to load")
+    if args.weights:
+        model.model.load_weights(str(args.weights))
 
     with tempfile.TemporaryDirectory() as tmp:
         src_dir = Path(tmp) / "in"

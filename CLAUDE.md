@@ -40,6 +40,7 @@
 ## ★ 2026-10-25 overnight 연구 결과 (상세: `eval/BEST_RESULTS.md`, `eval/OVERNIGHT_REPORT.md`)
 - **실베이스 테스트셋(R1)**: `eval/heldout/build_realbass.py`가 Slakh test 베이스를 실제 녹음 단음(CC0 일렉·업라이트)으로 다시 렌더링한다. 신스에서 앞서던 YourMT3+ 스템 입력이 실베이스에서는 현행 하이브리드보다 −0.19~−0.23 낮다 → **베이스 기본값(Basic Pitch + 하이브리드) 유지**. 신스에서 "이득 없음"이던 하이브리드 후처리는 실베이스에서 BP 원출력보다 +0.11~+0.14 유의하게 낫다. **베이스 모델은 신스 렌더 점수로 고르지 말 것.**
 - **분리기(R3)**: htdemucs_ft·BS-RoFormer·SCNet-XL 모두 드럼 다운스트림(MDB) 차이 ±0.011, CI가 0 포함 → htdemucs 유지. 단 htdemucs_ft는 베이스 BP 원출력에서 +0.023 [+0.004, +0.041](탐색 결과, 후속 과제).
+- **ADTOF 파인튜닝(R4, 축소)**: Slakh 렌더 분리 스템으로만 파인튜닝하면 검증(Slakh)은 +0.09지만 실제 녹음 MDB는 −0.043 [−0.066, −0.022] → 기각. 실제 녹음 되새김 데이터 없이 재시도하지 말 것.
 - **드럼 벨로시티(R6)**: 클래스 대역 에너지(`drum_velocity.py --mode band`, 기본). **피치 벤드(R7)**: pYIN(`PITCH_BEND_METHOD`, 기본 pyin).
 - **비트(R5)**: Beat This!(`backend/scripts/beat_track.py`, 격리 `.venv-beat` 또는 메인 venv 인프로세스, 체크포인트는 사이드카에 동봉).
 - **라벨 함정 추가**: Slakh Track01898 베이스 정답 전체 중복, Slakh MIDI 격자 위상 오류 곡(Track01895·01903), Slakh 렌더러가 무시한 정답 벤드. 채점 v2(`run_heldout.py`)가 중복을 제거한다.
