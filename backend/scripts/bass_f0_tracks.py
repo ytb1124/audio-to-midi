@@ -6,6 +6,8 @@
 - pesto      pesto-pitch (mir-1k_g7), 10 ms, conf = confidence
 - rmvpe      RVC의 RMVPE(third_party/rmvpe, MIT), 10 ms, conf = 최대 salience
 - basicpitch Basic Pitch contour 출력(3 bins/semitone)에서 베이스 음역 argmax, conf = salience
+- swiftf0    SwiftF0 0.3.0(ONNX, MIT, 2026-10-25 round 2), 16 ms, conf = 모델 유성 점수.
+             모델 음역 하한이 46.875 Hz(F#1 근처)라 E1(41.2 Hz)~F1은 추적하지 못한다.
 
 basicpitch는 .venv-backend에서, 나머지는 .venv-f0(또는 같은 패키지가 있는 venv)에서 돈다.
 CLI: python bass_f0_tracks.py <audio> <out.npz> --method pyin
@@ -104,7 +106,16 @@ def f0_basicpitch(path: str):
     return t, f0, conf
 
 
-METHODS = {"pyin": f0_pyin, "crepe": f0_crepe, "pesto": f0_pesto, "rmvpe": f0_rmvpe, "basicpitch": f0_basicpitch}
+def f0_swiftf0(path: str):
+    from swift_f0 import SwiftF0
+
+    sr = 16000
+    y = _load(path, sr)
+    r = SwiftF0(threads=2).detect(y, sr, fmax=FMAX)
+    return r.timestamps, np.where(r.pitch_hz > 0, r.pitch_hz, 0.0), r.confidence
+
+
+METHODS = {"swiftf0": f0_swiftf0, "pyin": f0_pyin, "crepe": f0_crepe, "pesto": f0_pesto, "rmvpe": f0_rmvpe, "basicpitch": f0_basicpitch}
 
 
 def extract(path: str, method: str):
