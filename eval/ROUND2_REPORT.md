@@ -4,13 +4,13 @@
 (채점 v2, 곡별 평균, paired 95% 부트스트랩 CI 10,000회 seed 0, 파라미터는 개발셋에서만, 테스트는 후보마다 1회).
 수치의 원자료는 `eval/round2/results/`(점수 JSON·리포트 텍스트)에 있다.
 
-**결론: 기본값·opt-in 변경 없음 → 배포하지 않음.** 차점은 N2 `adtof_split`(MDB 8클래스 +0.055, Slakh 보조에서 −0.004 유의 하락으로 근소 미달).
+**결론: 기본값·opt-in 변경 없음 → 배포하지 않음.** 차점은 N2 `adtof_split`(MDB 8클래스 +0.055, Slakh 보조에서 −0.004 유의 하락으로 근소 미달). N1 MuScriptor는 사용자 로그인 뒤 MDB 드럼에서 실행했다: −0.105로 기각.
 
 ## 0. 사전 점검
 
 | 후보 | 코드 | 가중치 | 라이선스 | 학습 데이터 | 오염 판정 |
 |---|---|---|---|---|---|
-| N1 MuScriptor (medium 307M) | GitHub muscriptor/muscriptor | HF `MuScriptor/*` — **게이트(로그인 + 라이선스 동의 필요)** | 코드 MIT / 가중치 CC BY-NC 4.0 | 합성 사전학습: Lakh MIDI 등 MIDI 145만 곡 × 사운드폰트 250+ / 실녹음 파인튜닝: 내부 17만 곡(1.1만 시간, 공개 데이터셋 이름 미기재) (arXiv 2607.08168) | **Slakh 계열 3세트 오염**(Slakh는 Lakh MIDI에서 뽑은 곡 → test MIDI가 사전학습에 들어갔을 가능성 높음; 실베이스 세트도 같은 MIDI). MDB: 내부 데이터 구성 불명 → "불명" |
+| N1 MuScriptor (medium 307M) | GitHub muscriptor/muscriptor | HF `MuScriptor/*` — 게이트(로그인 + 라이선스 동의, 자동 승인). 사용자 로그인 후 받음 | 코드 MIT / 가중치 CC BY-NC 4.0 | 합성 사전학습: Lakh MIDI 등 MIDI 145만 곡 × 사운드폰트 250+ / 실녹음 파인튜닝: 내부 17만 곡(1.1만 시간, 공개 데이터셋 이름 미기재) (arXiv 2607.08168) | **Slakh 계열 3세트 오염**(Slakh는 Lakh MIDI에서 뽑은 곡 → test MIDI가 사전학습에 들어갔을 가능성 높음; 실베이스 세트도 같은 MIDI). MDB: 내부 데이터 구성 불명 → "불명" |
 | N2 LarsNet | GitHub polimi-ispl/larsnet (LICENSE 파일 없음) | 저자 Google Drive 562 MB | 가중치 CC BY-NC 4.0 | StemGMD(Groove MIDI × 어쿠스틱 킷 10종 합성) | 깨끗(Slakh·MDB 미사용). 검출에 쓴 ADTOF도 MDB·Slakh 미사용 |
 | N3 ADT_STR | GitHub pier-maker92/ADT_STR, HF `Pierfrancesco/adt-str`(공개) | 공개(τ 0.4/0.6/0.8, 69M) | CC BY-SA 4.0 | 학습 설정(`configs/train/setting-tau-*.yaml`): `lakh_matched` 드럼 MIDI를 원샷 샘플로 합성. MDB·ENST는 평가에만 | **Slakh test 오염**(Lakh MIDI). MDB 깨끗 |
 | N4a Explore This! (arXiv 2610.14817) | GitHub CPJKU/explore_this (MIT) | **미공개**(릴리스·체크포인트 없음, 학습 스크립트만) | MIT | Beat This!와 같은 16개 데이터셋(Slakh 없음) | — (건너뜀) |
@@ -20,10 +20,30 @@
 
 ## 1. 후보별 결과
 
-### N1. MuScriptor — 건너뜀(데이터 접근 차단)
-- 가중치가 HF 게이트 저장소라 로그인 + 라이선스 동의가 필요하다(`muscriptor/utils/download.py`가 401 시 같은 안내를 낸다). 이 환경에는 HF 토큰이 없고, 계정 로그인·약관 동의는 대리할 수 없다. 대체 공식 배포처는 Replicate(유료 외부 API, 오디오 업로드)뿐이다.
-- 목표의 "데이터 신청제 → 사유 기록 후 건너뜀"에 해당. 사용자가 `hf auth login` 후 https://huggingface.co/MuScriptor/muscriptor-medium 에서 동의하면 같은 하니스로 바로 돌릴 수 있다.
-- 돌렸더라도 베이스 세 세트(slakh·slakh_realbass·slakh_realbass_up)는 모두 Slakh test MIDI라 **오염**으로 판정에서 빠진다. 판정 가능한 것은 MDB 드럼뿐(학습 데이터 불명 단서 포함).
+### N1. MuScriptor — MDB 드럼 실행(사용자 로그인 후), 기각
+
+처음에는 HF 게이트(로그인 + 라이선스 동의) 때문에 건너뛰었다. 사용자가 13:25에 `hf auth login`과 동의를 마친 뒤 사용자 지시("MDB 드럼만, 같은 하니스")로 실행했다.
+격리 venv `.venv-muscriptor`(muscriptor 0.4.0, torch 2.14), medium 307M, MPS fp16, greedy 기본 디코딩, 템포 검출·퀀타이즈 없음(`eval/heldout/muscriptor_transcribe.py`).
+드럼 출력은 GM 번호라 기존 채점을 그대로 쓴다. Slakh 계열은 오염(Lakh MIDI)이라 돌리지 않았다. 베이스는 모든 세트가 오염이라 판정할 수 없다.
+
+사전 등록(실행 전, 13:30): **주 시스템 = 믹스 입력 + 악기 조건 없음(저자 기본값)**. 스템 입력·`instruments=["drums"]` 조건은 참고값.
+Slakh train은 오염이라 개발셋으로 입력을 고를 수 없어서, 저자 기본값을 주 시스템으로 고정했다.
+
+| 시스템 (MDB 23곡) | 5클래스 F1 | 현행 대비 [95% CI] | 8클래스 F1 | 현행 대비 [95% CI] | 곡당 시간 |
+|---|---|---|---|---|---|
+| **stem_adtof (현행)** | 0.859 | — | 0.759 | — | — |
+| **muscriptor_mix (주 시스템)** | 0.754 | **−0.105 [−0.150, −0.063]** | 0.741 | −0.018 [−0.071, +0.050] | ~30 s(모델 로드 포함) |
+| muscriptor_stem (참고) | 0.809 | −0.050 [−0.091, −0.014] | 0.797 | +0.037 [−0.033, +0.112] | ~6 s |
+| muscriptor_mix_drumcond (참고) | 0.736 | −0.123 [−0.170, −0.076] | 0.723 | −0.037 [−0.098, +0.038] | ~11 s |
+| mix_yourmt3 (R2 비교 대상) | 0.636 | −0.223 | 0.612 | −0.148 | — |
+| mix_adtof | 0.812 | −0.047 | 0.714 | −0.045 | — |
+
+- **판정: 기각.** 주 시스템이 대표 세트에서 −0.105로 유의하게 낮다. 참고 변형 중 가장 좋은 스템 입력도 5클래스 −0.050으로 유의하게 낮다.
+- MDB가 MuScriptor 내부 실녹음 학습 데이터에 들어 있는지는 불명이다. 들어 있다면 MuScriptor에 유리한 쪽으로만 작용하므로, 기각 결론은 이 불확실성에 영향을 받지 않는다.
+- 같은 믹스 입력 다중악기 모델끼리는 MuScriptor가 YourMT3+보다 낫다: 5클래스 +0.118 [+0.039, +0.198], 8클래스 +0.130 [+0.052, +0.208].
+- 8클래스 체계를 직접 낸다. MDB 클래스별(믹스): 오픈 하이햇 0.402, crash 0.704, ride 0.308, 기타 0.390 (현행 0.000·0.481·0.000·0.000). 스템 입력은 오픈 하이햇 0.603, ride 0.519, 기타 0.792이지만 킥 외 기본 클래스(톰 0.435, 클로즈 하이햇 0.693)가 현행보다 낮다.
+- 라벨 점검: MDB `MusicDelta_80sRock` 주석에는 하이햇이 하나도 없다(KD 63·SD 35·CRC 5). MuScriptor는 하이햇 121타, ADTOF는 43타를 내서 둘 다 FP로 잡힌다. 주석 누락으로 의심하지만 확인할 수 없고, paired 비교라 그대로 두었다.
+- 일반 모드 참고값은 MDB에 비드럼 정답이 없어 내지 않았다.
 
 ### N2. LarsNet 피스 분리 → 8클래스
 
@@ -94,13 +114,13 @@ R7과 같은 설정: dev_bends_up에서 파라미터 격자 162개를 "무벤드
 
 | 경로 | 바꾼 것 | 유지 | 차점 |
 |---|---|---|---|
-| 베이스 | 없음 | Basic Pitch + 하이브리드 | (N1 미실행) |
-| 드럼 | 없음 | htdemucs → ADTOF 5클래스 | adtof_split(8클래스, MDB +0.055이나 Slakh −0.004 유의) |
+| 베이스 | 없음 | Basic Pitch + 하이브리드 | (N1은 모든 베이스 세트가 오염이라 판정 불가) |
+| 드럼 | 없음 | htdemucs → ADTOF 5클래스 | adtof_split(8클래스, MDB +0.055이나 Slakh −0.004 유의). MuScriptor 믹스 −0.105, 스템 −0.050 |
 | 비트 | 없음 | Beat This! minimal | CASM(비트 +0.005, 하한 −0.002) |
 | 피치 벤드 | 없음 | pYIN | SwiftF0(−0.184) |
 
 ## 3. 다음 후보
-1. **N1 MuScriptor MDB 드럼**: HF 동의만 되면 바로 실행 가능. 베이스는 오염이라 판정 불가 — 베이스는 Slakh가 아닌 MIDI로 만든 실베이스 세트가 있어야 한다.
+1. **MuScriptor 베이스**: 모든 베이스 세트가 Slakh test MIDI라 오염이다. Lakh 밖의 MIDI(예: 직접 만든 정답, 다른 데이터셋)로 실베이스 세트를 만들어야 판정할 수 있다. 8클래스 드럼에서는 MuScriptor 스템 입력(8클래스 +0.037, 유의하지 않음)과 adtof_split을 같은 세분 원천으로 비교·앙상블할 가치가 있다.
 2. **8클래스 드럼**: 이번 결과로 "현행 ADTOF + 세분"이 5클래스 손실 없이 8클래스를 올리는 구조임은 확인됐다. 다만 세분기가 사전확률에 의존한다. 실제 녹음 킷 다양성(ADTOF 데이터셋 신청, ENST) 확보가 선행 조건이다. ADT_STR의 오픈 하이햇·퍼커션 출력과 앙상블하는 안도 있다.
 3. 비트: CASM은 비트 연속성(CMLt)이 소폭 오르는 경향이 있다(+0.007, 유의하지 않음). 템포 2배·절반 혼동 곡이 더 많은 세트에서 다시 볼 가치가 있다.
 
@@ -109,7 +129,8 @@ R7과 같은 설정: dev_bends_up에서 파라미터 격자 162개를 "무벤드
 - 서브에이전트는 쓰지 않았다(설치·다운로드가 짧아 메인에서 직접 처리).
 - 다운로드 합계 약 2.4 GB(ADT_STR HF 1.1 GB, LarsNet 0.54 GB, torch 2.8 venv 약 0.7 GB, CASM·SwiftF0 소량). 모두 저자 GitHub/HF/저자 Drive 링크에서 받았다.
 - 채점 뒤 삭제: LarsNet 분리 스템 4.8 GB, ADT_STR 가중치 1.1 GB, LarsNet 가중치 0.59 GB, `.venv-adtstr`. 남긴 것: 점수 JSON, 재현 스크립트, 출력 MIDI(소용량), 세분 모델(joblib, gitignore).
-- 사용자 메시지: 이번 라운드 중에는 없었다.
+- 사용자 메시지: 라운드 종료 뒤 사용자가 HF 로그인을 마치고 "N1을 MDB 드럼에서 같은 하니스로" 실행하라고 지시했다(13:25). 그대로 따랐고, 결과는 위 N1 절에 있다.
+- N1 실행 뒤 삭제: MuScriptor 가중치(HF 캐시)와 `.venv-muscriptor`. 남긴 것: 점수 JSON(`n1_*`), 출력 MIDI, 워커 스크립트.
 
 ## 재현
 ```bash
@@ -120,6 +141,8 @@ R7과 같은 설정: dev_bends_up에서 파라미터 격자 162개를 "무벤드
 .venv-f0/bin/python eval/heldout/pitchbend_eval.py f0 --set dev_bends_up --methods swiftf0   # bendtest_up도 같은 방식, real_f0 --methods swiftf0
 .venv-f0/bin/python eval/heldout/pitchbend_eval.py tune --set dev_bends_up --methods swiftf0
 .venv-f0/bin/python eval/heldout/pitchbend_eval.py test --set bendtest_up && .venv-f0/bin/python eval/heldout/pitchbend_eval.py real
+# N1 (격리 venv .venv-muscriptor: pip install muscriptor; hf auth login + 라이선스 동의 필요)
+.venv-backend/bin/python eval/heldout/drums_r2.py run --systems muscriptor_mix muscriptor_stem muscriptor_mix_drumcond --sets mdb
 # N2 / N3 (격리 venv .venv-adtstr: torch 2.8, transformers<5, safetensors, omegaconf, pretty_midi, soundfile, pyyaml, h5py, pedalboard)
 .venv-backend/bin/python eval/heldout/larsnet_detect.py separate --sets slakh_train_all mdb slakh
 .venv-backend/bin/python eval/heldout/larsnet_detect.py fit

@@ -1,0 +1,1432 @@
+{
+  "mdb/MusicDelta_80sRock": {
+    "f1": 0.5612903225806453,
+    "f1_onset_only": 0.6580645161290322,
+    "per_class": {
+      "kick": {
+        "f1": 0.9919999999999999,
+        "n_ref": 62,
+        "n_est": 63
+      },
+      "snare": {
+        "f1": 0.7272727272727273,
+        "n_ref": 35,
+        "n_est": 20
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 120
+      },
+      "cymbal": {
+        "f1": 1.0,
+        "n_ref": 5,
+        "n_est": 5
+      }
+    },
+    "n_ref": 102,
+    "n_est": 208,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.5612903225806453,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9919999999999999,
+        "n_ref": 62,
+        "n_est": 63
+      },
+      "snare": {
+        "f1": 0.7272727272727273,
+        "n_ref": 35,
+        "n_est": 20
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 119
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 1
+      },
+      "crash": {
+        "f1": 1.0,
+        "n_ref": 5,
+        "n_est": 5
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_80sRock/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Beatles": {
+    "f1": 0.5808383233532934,
+    "f1_onset_only": 0.6706586826347306,
+    "per_class": {
+      "kick": {
+        "f1": 1.0,
+        "n_ref": 47,
+        "n_est": 47
+      },
+      "snare": {
+        "f1": 0.8311688311688311,
+        "n_ref": 45,
+        "n_est": 32
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 114
+      },
+      "tom": {
+        "f1": 0.7346938775510204,
+        "n_ref": 29,
+        "n_est": 20
+      }
+    },
+    "n_ref": 121,
+    "n_est": 213,
+    "unmapped_est": {
+      "54": 5
+    },
+    "unmapped_ref": {
+      "54": 32
+    },
+    "f1_8": 0.5390835579514824,
+    "per_class8": {
+      "kick": {
+        "f1": 1.0,
+        "n_ref": 47,
+        "n_est": 47
+      },
+      "snare": {
+        "f1": 0.8311688311688311,
+        "n_ref": 45,
+        "n_est": 32
+      },
+      "tom": {
+        "f1": 0.7346938775510204,
+        "n_ref": 29,
+        "n_est": 20
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 114
+      },
+      "other": {
+        "f1": 0.16216216216216214,
+        "n_ref": 32,
+        "n_est": 5
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Beatles/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_BebopJazz": {
+    "f1": 0.3905841325196164,
+    "f1_onset_only": 0.6817785527462947,
+    "per_class": {
+      "kick": {
+        "f1": 0.30769230769230765,
+        "n_ref": 30,
+        "n_est": 9
+      },
+      "snare": {
+        "f1": 0.29838709677419356,
+        "n_ref": 412,
+        "n_est": 84
+      },
+      "hihat": {
+        "f1": 0.5330812854442344,
+        "n_ref": 186,
+        "n_est": 343
+      },
+      "cymbal": {
+        "f1": 0.07228915662650602,
+        "n_ref": 6,
+        "n_est": 77
+      }
+    },
+    "n_ref": 634,
+    "n_est": 513,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.3696599825632084,
+    "per_class8": {
+      "kick": {
+        "f1": 0.30769230769230765,
+        "n_ref": 30,
+        "n_est": 9
+      },
+      "snare": {
+        "f1": 0.29838709677419356,
+        "n_ref": 412,
+        "n_est": 84
+      },
+      "hihat_closed": {
+        "f1": 0.5038759689922481,
+        "n_ref": 173,
+        "n_est": 343
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 13,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.5714285714285715,
+        "n_ref": 5,
+        "n_est": 2
+      },
+      "ride": {
+        "f1": 0.0,
+        "n_ref": 1,
+        "n_est": 75
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_BebopJazz/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Britpop": {
+    "f1": 0.9418837675350702,
+    "f1_onset_only": 0.9498997995991985,
+    "per_class": {
+      "kick": {
+        "f1": 0.9787234042553191,
+        "n_ref": 48,
+        "n_est": 46
+      },
+      "snare": {
+        "f1": 0.9036144578313253,
+        "n_ref": 89,
+        "n_est": 77
+      },
+      "hihat": {
+        "f1": 0.9620253164556962,
+        "n_ref": 118,
+        "n_est": 119
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 1,
+        "n_est": 1
+      }
+    },
+    "n_ref": 256,
+    "n_est": 243,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.9258517034068136,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9787234042553191,
+        "n_ref": 48,
+        "n_est": 46
+      },
+      "snare": {
+        "f1": 0.9036144578313253,
+        "n_ref": 89,
+        "n_est": 77
+      },
+      "hihat_closed": {
+        "f1": 0.9473684210526316,
+        "n_ref": 112,
+        "n_est": 116
+      },
+      "hihat_open": {
+        "f1": 0.4444444444444444,
+        "n_ref": 6,
+        "n_est": 3
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 1,
+        "n_est": 1
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Britpop/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_CoolJazz": {
+    "f1": 0.349238578680203,
+    "f1_onset_only": 0.5055837563451777,
+    "per_class": {
+      "kick": {
+        "f1": 0.5,
+        "n_ref": 69,
+        "n_est": 31
+      },
+      "snare": {
+        "f1": 0.2525252525252525,
+        "n_ref": 286,
+        "n_est": 308
+      },
+      "hihat": {
+        "f1": 0.5089605734767025,
+        "n_ref": 82,
+        "n_est": 197
+      },
+      "cymbal": {
+        "f1": 0.16666666666666666,
+        "n_ref": 7,
+        "n_est": 5
+      }
+    },
+    "n_ref": 444,
+    "n_est": 541,
+    "unmapped_est": {
+      "58": 1,
+      "100": 1,
+      "80": 3
+    },
+    "unmapped_ref": {},
+    "f1_8": 0.3434343434343434,
+    "per_class8": {
+      "kick": {
+        "f1": 0.5,
+        "n_ref": 69,
+        "n_est": 31
+      },
+      "snare": {
+        "f1": 0.2525252525252525,
+        "n_ref": 286,
+        "n_est": 308
+      },
+      "hihat_closed": {
+        "f1": 0.5090909090909091,
+        "n_ref": 78,
+        "n_est": 197
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 4,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 7,
+        "n_est": 0
+      },
+      "ride": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 5
+      },
+      "other": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 5
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_CoolJazz/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Country1": {
+    "f1": 0.6911764705882353,
+    "f1_onset_only": 0.6911764705882353,
+    "per_class": {
+      "kick": {
+        "f1": 0.9841269841269841,
+        "n_ref": 31,
+        "n_est": 32
+      },
+      "snare": {
+        "f1": 1.0,
+        "n_ref": 32,
+        "n_est": 32
+      },
+      "hihat": {
+        "f1": 0.42758620689655175,
+        "n_ref": 36,
+        "n_est": 109
+      }
+    },
+    "n_ref": 99,
+    "n_est": 173,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.6911764705882353,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9841269841269841,
+        "n_ref": 31,
+        "n_est": 32
+      },
+      "snare": {
+        "f1": 1.0,
+        "n_ref": 32,
+        "n_est": 32
+      },
+      "hihat_closed": {
+        "f1": 0.42758620689655175,
+        "n_ref": 36,
+        "n_est": 109
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Country1/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Disco": {
+    "f1": 0.869309838472834,
+    "f1_onset_only": 0.8702887909936368,
+    "per_class": {
+      "kick": {
+        "f1": 0.9914529914529915,
+        "n_ref": 118,
+        "n_est": 116
+      },
+      "snare": {
+        "f1": 0.9862068965517241,
+        "n_ref": 147,
+        "n_est": 143
+      },
+      "hihat": {
+        "f1": 0.8281764318630678,
+        "n_ref": 728,
+        "n_est": 791
+      }
+    },
+    "n_ref": 993,
+    "n_est": 1050,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.8663729809104257,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9914529914529915,
+        "n_ref": 118,
+        "n_est": 116
+      },
+      "snare": {
+        "f1": 0.9862068965517241,
+        "n_ref": 147,
+        "n_est": 143
+      },
+      "hihat_closed": {
+        "f1": 0.8221024258760108,
+        "n_ref": 711,
+        "n_est": 773
+      },
+      "hihat_open": {
+        "f1": 0.9142857142857143,
+        "n_ref": 17,
+        "n_est": 18
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Disco/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_FreeJazz": {
+    "f1": 0.4729632299927902,
+    "f1_onset_only": 0.7267483777937996,
+    "per_class": {
+      "kick": {
+        "f1": 0.37837837837837834,
+        "n_ref": 129,
+        "n_est": 56
+      },
+      "snare": {
+        "f1": 0.6188197767145136,
+        "n_ref": 329,
+        "n_est": 298
+      },
+      "hihat": {
+        "f1": 0.06451612903225806,
+        "n_ref": 7,
+        "n_est": 179
+      },
+      "tom": {
+        "f1": 0.07692307692307691,
+        "n_ref": 23,
+        "n_est": 3
+      },
+      "cymbal": {
+        "f1": 0.5068870523415978,
+        "n_ref": 210,
+        "n_est": 153
+      }
+    },
+    "n_ref": 698,
+    "n_est": 689,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.46397694524495675,
+    "per_class8": {
+      "kick": {
+        "f1": 0.37837837837837834,
+        "n_ref": 129,
+        "n_est": 56
+      },
+      "snare": {
+        "f1": 0.6188197767145136,
+        "n_ref": 329,
+        "n_est": 298
+      },
+      "tom": {
+        "f1": 0.07692307692307691,
+        "n_ref": 23,
+        "n_est": 3
+      },
+      "hihat_closed": {
+        "f1": 0.0546448087431694,
+        "n_ref": 6,
+        "n_est": 177
+      },
+      "hihat_open": {
+        "f1": 0.6666666666666666,
+        "n_ref": 1,
+        "n_est": 2
+      },
+      "crash": {
+        "f1": 0.39999999999999997,
+        "n_ref": 27,
+        "n_est": 8
+      },
+      "ride": {
+        "f1": 0.48024316109422494,
+        "n_ref": 184,
+        "n_est": 145
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_FreeJazz/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_FunkJazz": {
+    "f1": 0.8774193548387097,
+    "f1_onset_only": 0.8999999999999999,
+    "per_class": {
+      "kick": {
+        "f1": 0.7789473684210527,
+        "n_ref": 58,
+        "n_est": 37
+      },
+      "snare": {
+        "f1": 0.911764705882353,
+        "n_ref": 109,
+        "n_est": 95
+      },
+      "hihat": {
+        "f1": 0.8794788273615635,
+        "n_ref": 142,
+        "n_est": 165
+      },
+      "tom": {
+        "f1": 1.0,
+        "n_ref": 2,
+        "n_est": 2
+      },
+      "cymbal": {
+        "f1": 1.0,
+        "n_ref": 5,
+        "n_est": 5
+      }
+    },
+    "n_ref": 316,
+    "n_est": 304,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.8096774193548387,
+    "per_class8": {
+      "kick": {
+        "f1": 0.7789473684210527,
+        "n_ref": 58,
+        "n_est": 37
+      },
+      "snare": {
+        "f1": 0.911764705882353,
+        "n_ref": 109,
+        "n_est": 95
+      },
+      "tom": {
+        "f1": 1.0,
+        "n_ref": 2,
+        "n_est": 2
+      },
+      "hihat_closed": {
+        "f1": 0.7769230769230768,
+        "n_ref": 108,
+        "n_est": 152
+      },
+      "hihat_open": {
+        "f1": 0.5531914893617021,
+        "n_ref": 34,
+        "n_est": 13
+      },
+      "crash": {
+        "f1": 1.0,
+        "n_ref": 5,
+        "n_est": 5
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_FunkJazz/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_FusionJazz": {
+    "f1": 0.5192107995846313,
+    "f1_onset_only": 0.7725856697819313,
+    "per_class": {
+      "kick": {
+        "f1": 0.6519823788546255,
+        "n_ref": 136,
+        "n_est": 91
+      },
+      "snare": {
+        "f1": 0.6600985221674877,
+        "n_ref": 123,
+        "n_est": 80
+      },
+      "hihat": {
+        "f1": 0.31000000000000005,
+        "n_ref": 109,
+        "n_est": 91
+      },
+      "tom": {
+        "f1": 0.8181818181818181,
+        "n_ref": 13,
+        "n_est": 9
+      },
+      "cymbal": {
+        "f1": 0.4437299035369775,
+        "n_ref": 118,
+        "n_est": 193
+      }
+    },
+    "n_ref": 499,
+    "n_est": 464,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.5020746887966805,
+    "per_class8": {
+      "kick": {
+        "f1": 0.6519823788546255,
+        "n_ref": 136,
+        "n_est": 91
+      },
+      "snare": {
+        "f1": 0.6600985221674877,
+        "n_ref": 123,
+        "n_est": 80
+      },
+      "tom": {
+        "f1": 0.8181818181818181,
+        "n_ref": 13,
+        "n_est": 9
+      },
+      "hihat_closed": {
+        "f1": 0.2764227642276423,
+        "n_ref": 42,
+        "n_est": 81
+      },
+      "hihat_open": {
+        "f1": 0.1794871794871795,
+        "n_ref": 68,
+        "n_est": 10
+      },
+      "crash": {
+        "f1": 0.8421052631578947,
+        "n_ref": 21,
+        "n_est": 17
+      },
+      "ride": {
+        "f1": 0.38095238095238093,
+        "n_ref": 97,
+        "n_est": 176
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_FusionJazz/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Gospel": {
+    "f1": 0.9147894221351616,
+    "f1_onset_only": 0.9461312438785504,
+    "per_class": {
+      "kick": {
+        "f1": 0.9781021897810218,
+        "n_ref": 140,
+        "n_est": 134
+      },
+      "snare": {
+        "f1": 0.9241877256317689,
+        "n_ref": 137,
+        "n_est": 140
+      },
+      "hihat": {
+        "f1": 0.8888888888888888,
+        "n_ref": 211,
+        "n_est": 239
+      },
+      "cymbal": {
+        "f1": 0.5,
+        "n_ref": 11,
+        "n_est": 9
+      }
+    },
+    "n_ref": 499,
+    "n_est": 522,
+    "unmapped_est": {
+      "69": 1
+    },
+    "unmapped_ref": {},
+    "f1_8": 0.9130009775171065,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9781021897810218,
+        "n_ref": 140,
+        "n_est": 134
+      },
+      "snare": {
+        "f1": 0.9241877256317689,
+        "n_ref": 137,
+        "n_est": 140
+      },
+      "hihat_closed": {
+        "f1": 0.8955916473317865,
+        "n_ref": 200,
+        "n_est": 231
+      },
+      "hihat_open": {
+        "f1": 0.7000000000000001,
+        "n_ref": 12,
+        "n_est": 8
+      },
+      "crash": {
+        "f1": 0.5,
+        "n_ref": 11,
+        "n_est": 9
+      },
+      "other": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 1
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Gospel/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Grunge": {
+    "f1": 0.9328358208955223,
+    "f1_onset_only": 0.9402985074626865,
+    "per_class": {
+      "kick": {
+        "f1": 0.9585798816568047,
+        "n_ref": 88,
+        "n_est": 81
+      },
+      "snare": {
+        "f1": 0.8041237113402062,
+        "n_ref": 56,
+        "n_est": 41
+      },
+      "hihat": {
+        "f1": 0.9747899159663865,
+        "n_ref": 120,
+        "n_est": 118
+      },
+      "tom": {
+        "f1": 0.888888888888889,
+        "n_ref": 12,
+        "n_est": 15
+      },
+      "cymbal": {
+        "f1": 0.8,
+        "n_ref": 2,
+        "n_est": 3
+      }
+    },
+    "n_ref": 278,
+    "n_est": 258,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.9253731343283582,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9585798816568047,
+        "n_ref": 88,
+        "n_est": 81
+      },
+      "snare": {
+        "f1": 0.8041237113402062,
+        "n_ref": 56,
+        "n_est": 41
+      },
+      "tom": {
+        "f1": 0.888888888888889,
+        "n_ref": 12,
+        "n_est": 15
+      },
+      "hihat_closed": {
+        "f1": 0.9661016949152542,
+        "n_ref": 118,
+        "n_est": 118
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 2,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.8,
+        "n_ref": 2,
+        "n_est": 3
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Grunge/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Hendrix": {
+    "f1": 0.9960159362549801,
+    "f1_onset_only": 0.9960159362549801,
+    "per_class": {
+      "kick": {
+        "f1": 1.0,
+        "n_ref": 31,
+        "n_est": 31
+      },
+      "snare": {
+        "f1": 1.0,
+        "n_ref": 32,
+        "n_est": 32
+      },
+      "hihat": {
+        "f1": 0.9919999999999999,
+        "n_ref": 63,
+        "n_est": 62
+      }
+    },
+    "n_ref": 126,
+    "n_est": 125,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.9960159362549801,
+    "per_class8": {
+      "kick": {
+        "f1": 1.0,
+        "n_ref": 31,
+        "n_est": 31
+      },
+      "snare": {
+        "f1": 1.0,
+        "n_ref": 32,
+        "n_est": 32
+      },
+      "hihat_closed": {
+        "f1": 0.9919999999999999,
+        "n_ref": 63,
+        "n_est": 62
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Hendrix/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_LatinJazz": {
+    "f1": 0.7162284678150499,
+    "f1_onset_only": 0.8794197642792384,
+    "per_class": {
+      "kick": {
+        "f1": 0.7853403141361257,
+        "n_ref": 114,
+        "n_est": 77
+      },
+      "snare": {
+        "f1": 0.8715365239294709,
+        "n_ref": 199,
+        "n_est": 198
+      },
+      "hihat": {
+        "f1": 0.6768447837150127,
+        "n_ref": 179,
+        "n_est": 214
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 2,
+        "n_est": 0
+      },
+      "cymbal": {
+        "f1": 0.2333333333333333,
+        "n_ref": 99,
+        "n_est": 21
+      }
+    },
+    "n_ref": 593,
+    "n_est": 510,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.669084315503173,
+    "per_class8": {
+      "kick": {
+        "f1": 0.7853403141361257,
+        "n_ref": 114,
+        "n_est": 77
+      },
+      "snare": {
+        "f1": 0.8715365239294709,
+        "n_ref": 199,
+        "n_est": 198
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 2,
+        "n_est": 0
+      },
+      "hihat_closed": {
+        "f1": 0.5637982195845698,
+        "n_ref": 135,
+        "n_est": 202
+      },
+      "hihat_open": {
+        "f1": 0.42857142857142855,
+        "n_ref": 44,
+        "n_est": 12
+      },
+      "crash": {
+        "f1": 1.0,
+        "n_ref": 4,
+        "n_est": 4
+      },
+      "ride": {
+        "f1": 0.17857142857142858,
+        "n_ref": 95,
+        "n_est": 17
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_LatinJazz/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_ModalJazz": {
+    "f1": 0.48860958366064416,
+    "f1_onset_only": 0.6347211311861745,
+    "per_class": {
+      "kick": {
+        "f1": 0.6296296296296297,
+        "n_ref": 27,
+        "n_est": 27
+      },
+      "snare": {
+        "f1": 0.5139664804469274,
+        "n_ref": 240,
+        "n_est": 118
+      },
+      "hihat": {
+        "f1": 0.4590163934426229,
+        "n_ref": 177,
+        "n_est": 189
+      },
+      "cymbal": {
+        "f1": 0.47676767676767673,
+        "n_ref": 371,
+        "n_est": 124
+      }
+    },
+    "n_ref": 815,
+    "n_est": 458,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.4823252160251375,
+    "per_class8": {
+      "kick": {
+        "f1": 0.6296296296296297,
+        "n_ref": 27,
+        "n_est": 27
+      },
+      "snare": {
+        "f1": 0.5139664804469274,
+        "n_ref": 240,
+        "n_est": 118
+      },
+      "hihat_closed": {
+        "f1": 0.4602739726027397,
+        "n_ref": 176,
+        "n_est": 189
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 1,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.4210526315789474,
+        "n_ref": 12,
+        "n_est": 7
+      },
+      "ride": {
+        "f1": 0.4621848739495798,
+        "n_ref": 359,
+        "n_est": 117
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_ModalJazz/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Punk": {
+    "f1": 0.8434343434343433,
+    "f1_onset_only": 0.9292929292929293,
+    "per_class": {
+      "kick": {
+        "f1": 0.935064935064935,
+        "n_ref": 73,
+        "n_est": 81
+      },
+      "snare": {
+        "f1": 0.8860759493670887,
+        "n_ref": 41,
+        "n_est": 38
+      },
+      "hihat": {
+        "f1": 0.8666666666666667,
+        "n_ref": 50,
+        "n_est": 40
+      },
+      "tom": {
+        "f1": 0.7142857142857143,
+        "n_ref": 8,
+        "n_est": 6
+      },
+      "cymbal": {
+        "f1": 0.5423728813559322,
+        "n_ref": 32,
+        "n_est": 27
+      }
+    },
+    "n_ref": 204,
+    "n_est": 192,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.8080808080808081,
+    "per_class8": {
+      "kick": {
+        "f1": 0.935064935064935,
+        "n_ref": 73,
+        "n_est": 81
+      },
+      "snare": {
+        "f1": 0.8860759493670887,
+        "n_ref": 41,
+        "n_est": 38
+      },
+      "tom": {
+        "f1": 0.7142857142857143,
+        "n_ref": 8,
+        "n_est": 6
+      },
+      "hihat_closed": {
+        "f1": 0.6923076923076923,
+        "n_ref": 15,
+        "n_est": 11
+      },
+      "hihat_open": {
+        "f1": 0.71875,
+        "n_ref": 35,
+        "n_est": 29
+      },
+      "crash": {
+        "f1": 0.5423728813559322,
+        "n_ref": 32,
+        "n_est": 27
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Punk/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Reggae": {
+    "f1": 0.6097560975609756,
+    "f1_onset_only": 0.6585365853658537,
+    "per_class": {
+      "kick": {
+        "f1": 0.912280701754386,
+        "n_ref": 30,
+        "n_est": 27
+      },
+      "snare": {
+        "f1": 0.5454545454545454,
+        "n_ref": 16,
+        "n_est": 6
+      },
+      "hihat": {
+        "f1": 0.45945945945945943,
+        "n_ref": 34,
+        "n_est": 40
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 8
+      },
+      "cymbal": {
+        "f1": 0.6666666666666666,
+        "n_ref": 2,
+        "n_est": 1
+      }
+    },
+    "n_ref": 82,
+    "n_est": 82,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.6097560975609756,
+    "per_class8": {
+      "kick": {
+        "f1": 0.912280701754386,
+        "n_ref": 30,
+        "n_est": 27
+      },
+      "snare": {
+        "f1": 0.5454545454545454,
+        "n_ref": 16,
+        "n_est": 6
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 8
+      },
+      "hihat_closed": {
+        "f1": 0.47058823529411764,
+        "n_ref": 30,
+        "n_est": 38
+      },
+      "hihat_open": {
+        "f1": 0.3333333333333333,
+        "n_ref": 4,
+        "n_est": 2
+      },
+      "crash": {
+        "f1": 0.6666666666666666,
+        "n_ref": 2,
+        "n_est": 1
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Reggae/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Rock": {
+    "f1": 1.0,
+    "f1_onset_only": 1.0,
+    "per_class": {
+      "kick": {
+        "f1": 1.0,
+        "n_ref": 11,
+        "n_est": 11
+      },
+      "snare": {
+        "f1": 1.0,
+        "n_ref": 12,
+        "n_est": 12
+      },
+      "hihat": {
+        "f1": 1.0,
+        "n_ref": 47,
+        "n_est": 47
+      }
+    },
+    "n_ref": 70,
+    "n_est": 70,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 1.0,
+    "per_class8": {
+      "kick": {
+        "f1": 1.0,
+        "n_ref": 11,
+        "n_est": 11
+      },
+      "snare": {
+        "f1": 1.0,
+        "n_ref": 12,
+        "n_est": 12
+      },
+      "hihat_closed": {
+        "f1": 1.0,
+        "n_ref": 46,
+        "n_est": 46
+      },
+      "hihat_open": {
+        "f1": 1.0,
+        "n_ref": 1,
+        "n_est": 1
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Rock/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Rockabilly": {
+    "f1": 0.8701754385964913,
+    "f1_onset_only": 0.8701754385964913,
+    "per_class": {
+      "kick": {
+        "f1": 0.9795918367346939,
+        "n_ref": 25,
+        "n_est": 24
+      },
+      "snare": {
+        "f1": 1.0,
+        "n_ref": 24,
+        "n_est": 24
+      },
+      "hihat": {
+        "f1": 0.8085106382978724,
+        "n_ref": 93,
+        "n_est": 95
+      }
+    },
+    "n_ref": 142,
+    "n_est": 143,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.8701754385964913,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9795918367346939,
+        "n_ref": 25,
+        "n_est": 24
+      },
+      "snare": {
+        "f1": 1.0,
+        "n_ref": 24,
+        "n_est": 24
+      },
+      "hihat_closed": {
+        "f1": 0.8085106382978724,
+        "n_ref": 93,
+        "n_est": 95
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Rockabilly/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Shadows": {
+    "f1": 0.9698630136986301,
+    "f1_onset_only": 0.9698630136986301,
+    "per_class": {
+      "kick": {
+        "f1": 1.0,
+        "n_ref": 30,
+        "n_est": 30
+      },
+      "snare": {
+        "f1": 1.0,
+        "n_ref": 31,
+        "n_est": 31
+      },
+      "cymbal": {
+        "f1": 0.9547325102880659,
+        "n_ref": 117,
+        "n_est": 126
+      }
+    },
+    "n_ref": 178,
+    "n_est": 187,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.9698630136986301,
+    "per_class8": {
+      "kick": {
+        "f1": 1.0,
+        "n_ref": 30,
+        "n_est": 30
+      },
+      "snare": {
+        "f1": 1.0,
+        "n_ref": 31,
+        "n_est": 31
+      },
+      "crash": {
+        "f1": 1.0,
+        "n_ref": 5,
+        "n_est": 5
+      },
+      "ride": {
+        "f1": 0.9527896995708155,
+        "n_ref": 112,
+        "n_est": 121
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Shadows/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_SpeedMetal": {
+    "f1": 0.9557823129251701,
+    "f1_onset_only": 0.9693877551020409,
+    "per_class": {
+      "kick": {
+        "f1": 0.9823008849557523,
+        "n_ref": 114,
+        "n_est": 112
+      },
+      "snare": {
+        "f1": 0.9618320610687023,
+        "n_ref": 67,
+        "n_est": 64
+      },
+      "hihat": {
+        "f1": 0.9716981132075471,
+        "n_ref": 105,
+        "n_est": 107
+      },
+      "cymbal": {
+        "f1": 0.4210526315789474,
+        "n_ref": 4,
+        "n_est": 15
+      }
+    },
+    "n_ref": 290,
+    "n_est": 298,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.9523809523809523,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9823008849557523,
+        "n_ref": 114,
+        "n_est": 112
+      },
+      "snare": {
+        "f1": 0.9618320610687023,
+        "n_ref": 67,
+        "n_est": 64
+      },
+      "hihat_closed": {
+        "f1": 0.96,
+        "n_ref": 87,
+        "n_est": 88
+      },
+      "hihat_open": {
+        "f1": 0.972972972972973,
+        "n_ref": 18,
+        "n_est": 19
+      },
+      "crash": {
+        "f1": 0.4210526315789474,
+        "n_ref": 4,
+        "n_est": 15
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_SpeedMetal/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_SwingJazz": {
+    "f1": 0.4786324786324786,
+    "f1_onset_only": 0.5754985754985755,
+    "per_class": {
+      "kick": {
+        "f1": 0.656,
+        "n_ref": 82,
+        "n_est": 43
+      },
+      "snare": {
+        "f1": 0.4028268551236749,
+        "n_ref": 198,
+        "n_est": 85
+      },
+      "hihat": {
+        "f1": 0.48275862068965514,
+        "n_ref": 85,
+        "n_est": 205
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 4,
+        "n_est": 0
+      }
+    },
+    "n_ref": 369,
+    "n_est": 333,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.4643874643874644,
+    "per_class8": {
+      "kick": {
+        "f1": 0.656,
+        "n_ref": 82,
+        "n_est": 43
+      },
+      "snare": {
+        "f1": 0.4028268551236749,
+        "n_ref": 198,
+        "n_est": 85
+      },
+      "hihat_closed": {
+        "f1": 0.45614035087719296,
+        "n_ref": 80,
+        "n_est": 205
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 5,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 1,
+        "n_est": 0
+      },
+      "ride": {
+        "f1": 0.0,
+        "n_ref": 3,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_SwingJazz/drums.mid",
+    "seconds": 10.8
+  },
+  "mdb/MusicDelta_Zeppelin": {
+    "f1": 0.8977777777777779,
+    "f1_onset_only": 0.8977777777777779,
+    "per_class": {
+      "kick": {
+        "f1": 0.9577464788732395,
+        "n_ref": 36,
+        "n_est": 35
+      },
+      "snare": {
+        "f1": 0.7027027027027027,
+        "n_ref": 24,
+        "n_est": 13
+      },
+      "hihat": {
+        "f1": 0.9217391304347826,
+        "n_ref": 61,
+        "n_est": 54
+      },
+      "cymbal": {
+        "f1": 1.0,
+        "n_ref": 1,
+        "n_est": 1
+      }
+    },
+    "n_ref": 122,
+    "n_est": 103,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.888888888888889,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9577464788732395,
+        "n_ref": 36,
+        "n_est": 35
+      },
+      "snare": {
+        "f1": 0.7027027027027027,
+        "n_ref": 24,
+        "n_est": 13
+      },
+      "hihat_closed": {
+        "f1": 0.9369369369369369,
+        "n_ref": 57,
+        "n_est": 54
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 4,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 1.0,
+        "n_ref": 1,
+        "n_est": 1
+      }
+    },
+    "midi": "eval/heldout/runs/muscriptor_mix_drumcond/drums/mdb/MusicDelta_Zeppelin/drums.mid",
+    "seconds": 10.8
+  }
+}
