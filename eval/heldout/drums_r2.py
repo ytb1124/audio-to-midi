@@ -4,6 +4,9 @@
   adtstr_stem_t04|t06|t08   htdemucs drums 스템 → ADT_STR(setting-tau-0.x)
   adtstr_mix_t08            믹스 그대로 → ADT_STR
   larsnet_*                 htdemucs drums 스템 → LarsNet 5스템 → 클래스별 검출 (larsnet_detect.py)
+  muscriptor_mix            믹스 → MuScriptor medium(악기 조건 없음, 기본값) — N1 주 시스템(사전 등록)
+  muscriptor_stem           htdemucs drums 스템 → MuScriptor (참고)
+  muscriptor_mix_drumcond   믹스 → MuScriptor, instruments=["drums"] 조건 (참고)
 
 세트
   slakh_train  Slakh train 중 R4 검증 분할(songs[40:], 17곡) = 개발셋. 변형·입력 선택은 여기서만.
@@ -126,6 +129,21 @@ def run_adtstr(system: str, set_name: str, todo: list[str]) -> dict[str, Path]:
     return out
 
 
+def run_muscriptor(system: str, set_name: str, todo: list[str]) -> dict[str, Path]:
+    variant = system.removeprefix("muscriptor_")
+    out = {s: RUNS / system / "drums" / set_name / s / "drums.mid" for s in todo}
+    jobs = [[str(drum_stem(set_name, s) if variant == "stem" else DATA / set_name / s / "mix.wav"), str(out[s]),
+             ["drums"] if variant == "mix_drumcond" else None] for s in todo if not out[s].exists()]
+    if jobs:
+        jf = RUNS / system / f"jobs_{set_name}.json"
+        jf.parent.mkdir(parents=True, exist_ok=True)
+        jf.write_text(json.dumps(jobs))
+        env = dict(os.environ, OMP_NUM_THREADS="2", PYTHONWARNINGS="ignore")
+        subprocess.run(["nice", "-n", "15", str(ROOT / ".venv-muscriptor/bin/python"), str(HERE / "muscriptor_transcribe.py"),
+                        "--model", os.environ.get("MUSCRIPTOR_MODEL", "medium"), "--jobs", str(jf)], check=True, env=env)
+    return out
+
+
 def run_larsnet(system: str, set_name: str, todo: list[str]) -> dict[str, Path]:
     import larsnet_detect  # 같은 디렉터리, 메인 venv
 
@@ -143,7 +161,8 @@ def cmd_run(args) -> int:
             if not todo:
                 continue
             t0 = time.time()
-            runner = run_adtstr if system.startswith("adtstr_") else run_larsnet
+            runner = (run_adtstr if system.startswith("adtstr_") else
+                      run_muscriptor if system.startswith("muscriptor_") else run_larsnet)
             mids = runner(system, set_name, todo)
             per = (time.time() - t0) / len(todo)
             for s, midi in mids.items():

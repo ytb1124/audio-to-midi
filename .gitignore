@@ -97,3 +97,4 @@ eval/fixtures/*.wav
 eval/adtof_finetune/weights/
 .venv-adtstr/
 .venv-larsnet/
+.venv-muscriptor/
