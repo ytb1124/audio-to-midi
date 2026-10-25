@@ -46,7 +46,7 @@ BASS_PROGRAMS = range(32, 40)
 WIN = (30.0, 90.0)
 BEND_THR, BEND_DUR = 50.0, 0.030
 GRID = 0.01
-METHODS = ["basicpitch", "pyin", "crepe", "pesto", "rmvpe"]
+METHODS = ["basicpitch", "pyin", "crepe", "pesto", "rmvpe", "swiftf0"]
 
 
 # ---------------------------------------------------------------- 정답
@@ -236,7 +236,11 @@ def cmd_tune(args) -> int:
         else:
             print(f"{method:10s} 조건 만족 설정 없음")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    (OUT_DIR / "best_configs.json").write_text(json.dumps(best, indent=2))
+    # round 2: 다른 추출기의 기존 선택을 지우지 않도록 합친다
+    path = OUT_DIR / "best_configs.json"
+    merged = json.loads(path.read_text()) if path.exists() else {}
+    merged.update(best)
+    path.write_text(json.dumps(merged, indent=2))
     return 0
 
 

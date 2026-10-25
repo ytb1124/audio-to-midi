@@ -1,0 +1,102 @@
+{
+  "rmvpe": {
+    "params": {
+      "smooth_ms": 30.0,
+      "deadband": 35.0,
+      "min_bend": 80.0,
+      "min_dur_ms": 40.0,
+      "attack_skip_ms": 30.0,
+      "min_conf": 0.2,
+      "min_voiced_frac": 0.5,
+      "slide_only": true,
+      "step_cents": 5.0
+    },
+    "dev": {
+      "tp": 87,
+      "fp": 5,
+      "fn": 136,
+      "precision": 0.9456521739130435,
+      "recall": 0.3901345291479821,
+      "f1": 0.5523809523809524,
+      "n_bend": 223,
+      "n_nonbend": 3575,
+      "err_bend": 32.95367889574284,
+      "err_nonbend": 0.6245753177726836
+    }
+  },
+  "pyin": {
+    "params": {
+      "smooth_ms": 30.0,
+      "deadband": 35.0,
+      "min_bend": 50.0,
+      "min_dur_ms": 40.0,
+      "attack_skip_ms": 30.0,
+      "min_conf": 0.05,
+      "min_voiced_frac": 0.5,
+      "slide_only": false,
+      "step_cents": 5.0
+    },
+    "dev": {
+      "tp": 152,
+      "fp": 14,
+      "fn": 71,
+      "precision": 0.9156626506024096,
+      "recall": 0.6816143497757847,
+      "f1": 0.781491002570694,
+      "n_bend": 223,
+      "n_nonbend": 3575,
+      "err_bend": 19.193694089754434,
+      "err_nonbend": 0.8189005370304454
+    }
+  },
+  "crepe": {
+    "params": {
+      "smooth_ms": 60.0,
+      "deadband": 35.0,
+      "min_bend": 80.0,
+      "min_dur_ms": 40.0,
+      "attack_skip_ms": 30.0,
+      "min_conf": 0.2,
+      "min_voiced_frac": 0.5,
+      "slide_only": true,
+      "step_cents": 5.0
+    },
+    "dev": {
+      "tp": 96,
+      "fp": 19,
+      "fn": 127,
+      "precision": 0.8347826086956521,
+      "recall": 0.4304932735426009,
+      "f1": 0.5680473372781065,
+      "n_bend": 223,
+      "n_nonbend": 3575,
+      "err_bend": 32.45697007027385,
+      "err_nonbend": 0.6701174746434725
+    }
+  },
+  "swiftf0": {
+    "params": {
+      "smooth_ms": 60.0,
+      "deadband": 35.0,
+      "min_bend": 50.0,
+      "min_dur_ms": 40.0,
+      "attack_skip_ms": 30.0,
+      "min_conf": 0.5,
+      "min_voiced_frac": 0.5,
+      "slide_only": true,
+      "step_cents": 5.0
+    },
+    "dev": {
+      "tp": 153,
+      "fp": 127,
+      "fn": 70,
+      "precision": 0.5464285714285714,
+      "recall": 0.6860986547085202,
+      "f1": 0.6083499005964215,
+      "n_bend": 223,
+      "n_nonbend": 3575,
+      "err_bend": 16.41466730403636,
+      "err_nonbend": 1.4332656630532477
+    }
+  }
+}
