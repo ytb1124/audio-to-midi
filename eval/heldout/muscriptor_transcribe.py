@@ -27,7 +27,7 @@ def main():
         events = list(tm.transcribe(audio, instruments=instruments))
         Path(out).parent.mkdir(parents=True, exist_ok=True)
         Path(out).write_bytes(tm.events_to_midi_bytes(iter(events)))
-        print(json.dumps({"out": out, "seconds": round(time.time() - t, 1), "device": str(tm.device)}), flush=True)
+        print(json.dumps({"out": out, "seconds": round(time.time() - t, 1), "device": str(tm._device)}), flush=True)
 
 
 if __name__ == "__main__":
