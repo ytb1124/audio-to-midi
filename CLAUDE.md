@@ -51,6 +51,10 @@
 - **함정 기록**: ADT_STR 출력 pitch는 GM이 아니라 저장소 고유 26클래스 코드(`adtstr_transcribe.py` CUSTOM_TO_GM으로 변환). ADTOF 출력 GM은 킥 36·톰 45(35·47 아님). 8클래스 세분기의 MDB 이득은 대부분 "심벌 = ride" 사전확률이었다 — 렌더 데이터로 학습한 심벌 세분기는 킷 간 일반화가 안 된다(곡 단위 CV가 다수 클래스보다 낮음).
 - Lakh MIDI로 학습한 모델(MuScriptor, ADT_STR 등)은 Slakh test·실베이스 세트(같은 MIDI)에서 오염이다. 판정은 MDB 등 다른 원천으로 한다.
 
+## ★ 다음 과제 (2026-10-25 확정, 실행 전): 믹스 입력 베이스 전용 소형 모델
+- 계획서: `eval/BASS_MODEL_PLAN.md` — 학습 데이터 3층(렌더/실제 DI/의사 라벨), 모델 S·M·L(기본 ~3M), 평가 T1~T4와 **학습 전 고정한 판정 규칙**, 6주 일정과 중단 판정 G1~G3. 베이스 관련 작업은 이 계획을 먼저 읽고 따른다.
+- 테스트 음색(Fashionbass, Smolken)과 Slakh test·dev_realbass의 원본 Lakh MIDI는 학습에 넣지 않는다. T1(실제 연주셋)은 사람이 교정해야 하므로 교정 전 라벨로 채점하지 않는다.
+
 ## 모드별 상태
 
 ### Piano Mode — 완성. 절대 건드리지 말 것

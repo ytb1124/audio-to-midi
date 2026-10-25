@@ -149,7 +149,7 @@ This is an active research prototype. Transcription quality depends on the sourc
 
 - The bass test uses real recorded single notes re-rendered from MIDI, not full real performances; a MIDI-pickup recording set does not exist yet.
 - ADTOF outputs five drum classes, so it does not separate open and closed hi-hat, or crash and ride.
-- The ADTOF fine-tuning experiment (`eval/ADTOF_FINETUNE_PLAN.md`) was not run: its rehearsal dataset is available on request only.
+- ADTOF fine-tuning on separated stems was run in reduced form on 2026-10-25 and rejected. The plan (`eval/ADTOF_FINETUNE_PLAN.md`) called for rehearsal on the ADTOF dataset, which is available on request only, so the run used 40 rendered Slakh train drum stems alone. The selected condition (convolutional layers frozen) rose on rendered validation (0.695 → 0.786) but fell on real recordings (MDB 0.859 → 0.816, −0.043 [−0.066, −0.022]). Fine-tuning without real-recording rehearsal data is closed; details in `eval/BEST_RESULTS.md` section 3-4.
 - Editor sample sources and licenses are listed in `public/samples/LICENSES.md`.
 
 ## License
