@@ -95,3 +95,5 @@ eval/fixtures/*.wav
 .venv-data/
 /data/
 eval/adtof_finetune/weights/
+.venv-adtstr/
+.venv-larsnet/

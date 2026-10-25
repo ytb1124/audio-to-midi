@@ -1,0 +1,1014 @@
+{
+  "slakh_train/Track00047": {
+    "f1": 0.5311077389984825,
+    "f1_onset_only": 0.543247344461305,
+    "per_class": {
+      "kick": {
+        "f1": 0.9393939393939394,
+        "n_ref": 136,
+        "n_est": 128
+      },
+      "snare": {
+        "f1": 0.8571428571428571,
+        "n_ref": 68,
+        "n_est": 51
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 270,
+        "n_est": 0
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 4,
+        "n_est": 0
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 2,
+        "n_est": 0
+      }
+    },
+    "n_ref": 480,
+    "n_est": 179,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.5311077389984825,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9393939393939394,
+        "n_ref": 136,
+        "n_est": 128
+      },
+      "snare": {
+        "f1": 0.8571428571428571,
+        "n_ref": 68,
+        "n_est": 51
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 4,
+        "n_est": 0
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 270,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 2,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00047/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00048": {
+    "f1": 0.37362637362637363,
+    "f1_onset_only": 0.4835164835164836,
+    "per_class": {
+      "kick": {
+        "f1": 0.5333333333333333,
+        "n_ref": 68,
+        "n_est": 52
+      },
+      "snare": {
+        "f1": 0.7096774193548387,
+        "n_ref": 40,
+        "n_est": 22
+      },
+      "hihat": {
+        "f1": 0.16184971098265893,
+        "n_ref": 155,
+        "n_est": 18
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 9,
+        "n_est": 0
+      }
+    },
+    "n_ref": 272,
+    "n_est": 92,
+    "unmapped_est": {},
+    "unmapped_ref": {
+      "82": 109,
+      "70": 94,
+      "69": 16
+    },
+    "f1_8": 0.24772313296903462,
+    "per_class8": {
+      "kick": {
+        "f1": 0.5333333333333333,
+        "n_ref": 68,
+        "n_est": 52
+      },
+      "snare": {
+        "f1": 0.7096774193548387,
+        "n_ref": 40,
+        "n_est": 22
+      },
+      "hihat_closed": {
+        "f1": 0.1627906976744186,
+        "n_ref": 154,
+        "n_est": 18
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 18,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 9,
+        "n_est": 0
+      },
+      "other": {
+        "f1": 0.0,
+        "n_ref": 168,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00048/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00050": {
+    "f1": 0.4902309058614565,
+    "f1_onset_only": 0.4902309058614565,
+    "per_class": {
+      "kick": {
+        "f1": 0.7731958762886598,
+        "n_ref": 119,
+        "n_est": 75
+      },
+      "snare": {
+        "f1": 0.9545454545454545,
+        "n_ref": 69,
+        "n_est": 63
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 237,
+        "n_est": 0
+      }
+    },
+    "n_ref": 425,
+    "n_est": 138,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.4902309058614565,
+    "per_class8": {
+      "kick": {
+        "f1": 0.7731958762886598,
+        "n_ref": 119,
+        "n_est": 75
+      },
+      "snare": {
+        "f1": 0.9545454545454545,
+        "n_ref": 69,
+        "n_est": 63
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 221,
+        "n_est": 0
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 16,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00050/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00051": {
+    "f1": 0.4574898785425101,
+    "f1_onset_only": 0.4574898785425101,
+    "per_class": {
+      "kick": {
+        "f1": 0.21052631578947367,
+        "n_ref": 34,
+        "n_est": 4
+      },
+      "snare": {
+        "f1": 0.3571428571428571,
+        "n_ref": 69,
+        "n_est": 15
+      },
+      "hihat": {
+        "f1": 0.5053763440860215,
+        "n_ref": 278,
+        "n_est": 94
+      }
+    },
+    "n_ref": 381,
+    "n_est": 113,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.4574898785425101,
+    "per_class8": {
+      "kick": {
+        "f1": 0.21052631578947367,
+        "n_ref": 34,
+        "n_est": 4
+      },
+      "snare": {
+        "f1": 0.3571428571428571,
+        "n_ref": 69,
+        "n_est": 15
+      },
+      "hihat_closed": {
+        "f1": 0.5386819484240688,
+        "n_ref": 255,
+        "n_est": 94
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 23,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00051/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00052": {
+    "f1": 0.42578125,
+    "f1_onset_only": 0.42578125,
+    "per_class": {
+      "kick": {
+        "f1": 0.8630136986301369,
+        "n_ref": 83,
+        "n_est": 63
+      },
+      "snare": {
+        "f1": 0.8141592920353982,
+        "n_ref": 67,
+        "n_est": 46
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 113,
+        "n_est": 0
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 26,
+        "n_est": 0
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 114,
+        "n_est": 0
+      }
+    },
+    "n_ref": 403,
+    "n_est": 109,
+    "unmapped_est": {},
+    "unmapped_ref": {
+      "54": 18
+    },
+    "f1_8": 0.4113207547169811,
+    "per_class8": {
+      "kick": {
+        "f1": 0.8630136986301369,
+        "n_ref": 83,
+        "n_est": 63
+      },
+      "snare": {
+        "f1": 0.8141592920353982,
+        "n_ref": 67,
+        "n_est": 46
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 26,
+        "n_est": 0
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 113,
+        "n_est": 0
+      },
+      "ride": {
+        "f1": 0.0,
+        "n_ref": 114,
+        "n_est": 0
+      },
+      "other": {
+        "f1": 0.0,
+        "n_ref": 18,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00052/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00053": {
+    "f1": 0.368763557483731,
+    "f1_onset_only": 0.37310195227765725,
+    "per_class": {
+      "kick": {
+        "f1": 0.4827586206896552,
+        "n_ref": 88,
+        "n_est": 28
+      },
+      "snare": {
+        "f1": 0.9743589743589743,
+        "n_ref": 59,
+        "n_est": 58
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 217,
+        "n_est": 0
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 8,
+        "n_est": 0
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 3,
+        "n_est": 0
+      }
+    },
+    "n_ref": 375,
+    "n_est": 86,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.368763557483731,
+    "per_class8": {
+      "kick": {
+        "f1": 0.4827586206896552,
+        "n_ref": 88,
+        "n_est": 28
+      },
+      "snare": {
+        "f1": 0.9743589743589743,
+        "n_ref": 59,
+        "n_est": 58
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 8,
+        "n_est": 0
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 198,
+        "n_est": 0
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 19,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 3,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00053/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00055": {
+    "f1": 0.5152542372881356,
+    "f1_onset_only": 0.5152542372881356,
+    "per_class": {
+      "kick": {
+        "f1": 0.731958762886598,
+        "n_ref": 123,
+        "n_est": 71
+      },
+      "snare": {
+        "f1": 0.8440366972477064,
+        "n_ref": 63,
+        "n_est": 46
+      },
+      "hihat": {
+        "f1": 0.25,
+        "n_ref": 245,
+        "n_est": 35
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 3,
+        "n_est": 0
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 4,
+        "n_est": 0
+      }
+    },
+    "n_ref": 438,
+    "n_est": 152,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.5152542372881356,
+    "per_class8": {
+      "kick": {
+        "f1": 0.731958762886598,
+        "n_ref": 123,
+        "n_est": 71
+      },
+      "snare": {
+        "f1": 0.8440366972477064,
+        "n_ref": 63,
+        "n_est": 46
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 3,
+        "n_est": 0
+      },
+      "hihat_closed": {
+        "f1": 0.28,
+        "n_ref": 215,
+        "n_est": 35
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 30,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 4,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00055/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00056": {
+    "f1": 0.10876132930513595,
+    "f1_onset_only": 0.1268882175226586,
+    "per_class": {
+      "kick": {
+        "f1": 0.07619047619047618,
+        "n_ref": 95,
+        "n_est": 10
+      },
+      "snare": {
+        "f1": 0.25925925925925924,
+        "n_ref": 90,
+        "n_est": 18
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 116,
+        "n_est": 0
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 2,
+        "n_est": 0
+      }
+    },
+    "n_ref": 303,
+    "n_est": 28,
+    "unmapped_est": {},
+    "unmapped_ref": {
+      "69": 180
+    },
+    "f1_8": 0.07045009784735812,
+    "per_class8": {
+      "kick": {
+        "f1": 0.07619047619047618,
+        "n_ref": 95,
+        "n_est": 10
+      },
+      "snare": {
+        "f1": 0.25925925925925924,
+        "n_ref": 90,
+        "n_est": 18
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 109,
+        "n_est": 0
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 7,
+        "n_est": 0
+      },
+      "ride": {
+        "f1": 0.0,
+        "n_ref": 2,
+        "n_est": 0
+      },
+      "other": {
+        "f1": 0.0,
+        "n_ref": 180,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00056/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00057": {
+    "f1": 0.4051724137931034,
+    "f1_onset_only": 0.4051724137931034,
+    "per_class": {
+      "kick": {
+        "f1": 0.9894736842105264,
+        "n_ref": 144,
+        "n_est": 141
+      },
+      "snare": {
+        "f1": 0.0,
+        "n_ref": 58,
+        "n_est": 0
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 353,
+        "n_est": 0
+      }
+    },
+    "n_ref": 555,
+    "n_est": 141,
+    "unmapped_est": {},
+    "unmapped_ref": {
+      "82": 356,
+      "70": 361
+    },
+    "f1_8": 0.2667928098391675,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9894736842105264,
+        "n_ref": 144,
+        "n_est": 141
+      },
+      "snare": {
+        "f1": 0.0,
+        "n_ref": 58,
+        "n_est": 0
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 353,
+        "n_est": 0
+      },
+      "other": {
+        "f1": 0.0,
+        "n_ref": 361,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00057/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00058": {
+    "f1": 0.4749163879598663,
+    "f1_onset_only": 0.4749163879598663,
+    "per_class": {
+      "kick": {
+        "f1": 0.9959183673469388,
+        "n_ref": 123,
+        "n_est": 122
+      },
+      "snare": {
+        "f1": 0.3505154639175258,
+        "n_ref": 80,
+        "n_est": 17
+      },
+      "hihat": {
+        "f1": 0.024096385542168676,
+        "n_ref": 246,
+        "n_est": 3
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 7,
+        "n_est": 0
+      }
+    },
+    "n_ref": 456,
+    "n_est": 142,
+    "unmapped_est": {},
+    "unmapped_ref": {
+      "54": 252
+    },
+    "f1_8": 0.3341176470588236,
+    "per_class8": {
+      "kick": {
+        "f1": 0.9959183673469388,
+        "n_ref": 123,
+        "n_est": 122
+      },
+      "snare": {
+        "f1": 0.3505154639175258,
+        "n_ref": 80,
+        "n_est": 17
+      },
+      "hihat_closed": {
+        "f1": 0.047619047619047616,
+        "n_ref": 123,
+        "n_est": 3
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 123,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 7,
+        "n_est": 0
+      },
+      "other": {
+        "f1": 0.0,
+        "n_ref": 252,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00058/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00060": {
+    "f1": 0.3559322033898305,
+    "f1_onset_only": 0.47457627118644063,
+    "per_class": {
+      "kick": {
+        "f1": 0.711111111111111,
+        "n_ref": 43,
+        "n_est": 47
+      },
+      "snare": {
+        "f1": 0.5,
+        "n_ref": 30,
+        "n_est": 10
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 84,
+        "n_est": 0
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 16,
+        "n_est": 0
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 6,
+        "n_est": 0
+      }
+    },
+    "n_ref": 179,
+    "n_est": 57,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.3559322033898305,
+    "per_class8": {
+      "kick": {
+        "f1": 0.711111111111111,
+        "n_ref": 43,
+        "n_est": 47
+      },
+      "snare": {
+        "f1": 0.5,
+        "n_ref": 30,
+        "n_est": 10
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 16,
+        "n_est": 0
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 82,
+        "n_est": 0
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 2,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 6,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00060/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00062": {
+    "f1": 0.0,
+    "f1_onset_only": 0.0,
+    "per_class": {
+      "kick": {
+        "f1": 0.0,
+        "n_ref": 97,
+        "n_est": 0
+      },
+      "snare": {
+        "f1": 0.0,
+        "n_ref": 48,
+        "n_est": 0
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 391,
+        "n_est": 0
+      }
+    },
+    "n_ref": 536,
+    "n_est": 0,
+    "unmapped_est": {},
+    "unmapped_ref": {
+      "64": 150,
+      "61": 6,
+      "62": 10
+    },
+    "f1_8": 0.0,
+    "per_class8": {
+      "kick": {
+        "f1": 0.0,
+        "n_ref": 97,
+        "n_est": 0
+      },
+      "snare": {
+        "f1": 0.0,
+        "n_ref": 48,
+        "n_est": 0
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 391,
+        "n_est": 0
+      },
+      "other": {
+        "f1": 0.0,
+        "n_ref": 162,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00062/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00063": {
+    "f1": 0.6457399103139013,
+    "f1_onset_only": 0.6457399103139013,
+    "per_class": {
+      "kick": {
+        "f1": 1.0,
+        "n_ref": 137,
+        "n_est": 137
+      },
+      "snare": {
+        "f1": 0.9545454545454545,
+        "n_ref": 69,
+        "n_est": 63
+      },
+      "hihat": {
+        "f1": 0.12355212355212357,
+        "n_ref": 243,
+        "n_est": 16
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 4,
+        "n_est": 0
+      }
+    },
+    "n_ref": 453,
+    "n_est": 216,
+    "unmapped_est": {},
+    "unmapped_ref": {},
+    "f1_8": 0.6457399103139013,
+    "per_class8": {
+      "kick": {
+        "f1": 1.0,
+        "n_ref": 137,
+        "n_est": 137
+      },
+      "snare": {
+        "f1": 0.9545454545454545,
+        "n_ref": 69,
+        "n_est": 63
+      },
+      "hihat_closed": {
+        "f1": 0.12355212355212357,
+        "n_ref": 243,
+        "n_est": 16
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 4,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00063/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00065": {
+    "f1": 0.7565543071161048,
+    "f1_onset_only": 0.7565543071161048,
+    "per_class": {
+      "kick": {
+        "f1": 0.18181818181818182,
+        "n_ref": 10,
+        "n_est": 1
+      },
+      "snare": {
+        "f1": 0.8620689655172413,
+        "n_ref": 132,
+        "n_est": 100
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 17,
+        "n_est": 0
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 6,
+        "n_est": 0
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 1,
+        "n_est": 0
+      }
+    },
+    "n_ref": 166,
+    "n_est": 101,
+    "unmapped_est": {},
+    "unmapped_ref": {
+      "54": 34
+    },
+    "f1_8": 0.6710963455149502,
+    "per_class8": {
+      "kick": {
+        "f1": 0.18181818181818182,
+        "n_ref": 10,
+        "n_est": 1
+      },
+      "snare": {
+        "f1": 0.8620689655172413,
+        "n_ref": 132,
+        "n_est": 100
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 6,
+        "n_est": 0
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 15,
+        "n_est": 0
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 2,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 1,
+        "n_est": 0
+      },
+      "other": {
+        "f1": 0.0,
+        "n_ref": 34,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00065/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00066": {
+    "f1": 0.4734133790737564,
+    "f1_onset_only": 0.4734133790737564,
+    "per_class": {
+      "kick": {
+        "f1": 0.617283950617284,
+        "n_ref": 112,
+        "n_est": 50
+      },
+      "snare": {
+        "f1": 0.9701492537313433,
+        "n_ref": 69,
+        "n_est": 65
+      },
+      "hihat": {
+        "f1": 0.16666666666666669,
+        "n_ref": 253,
+        "n_est": 23
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 3,
+        "n_est": 0
+      },
+      "cymbal": {
+        "f1": 0.0,
+        "n_ref": 8,
+        "n_est": 0
+      }
+    },
+    "n_ref": 445,
+    "n_est": 138,
+    "unmapped_est": {},
+    "unmapped_ref": {
+      "54": 507
+    },
+    "f1_8": 0.25321100917431194,
+    "per_class8": {
+      "kick": {
+        "f1": 0.617283950617284,
+        "n_ref": 112,
+        "n_est": 50
+      },
+      "snare": {
+        "f1": 0.9701492537313433,
+        "n_ref": 69,
+        "n_est": 65
+      },
+      "tom": {
+        "f1": 0.0,
+        "n_ref": 3,
+        "n_est": 0
+      },
+      "hihat_closed": {
+        "f1": 0.17164179104477612,
+        "n_ref": 245,
+        "n_est": 23
+      },
+      "hihat_open": {
+        "f1": 0.0,
+        "n_ref": 8,
+        "n_est": 0
+      },
+      "crash": {
+        "f1": 0.0,
+        "n_ref": 8,
+        "n_est": 0
+      },
+      "other": {
+        "f1": 0.0,
+        "n_ref": 507,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00066/drums.mid",
+    "seconds": 0.1
+  },
+  "slakh_train/Track00067": {
+    "f1": 0.0,
+    "f1_onset_only": 0.2162162162162162,
+    "per_class": {
+      "snare": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 21
+      },
+      "hihat": {
+        "f1": 0.0,
+        "n_ref": 16,
+        "n_est": 0
+      }
+    },
+    "n_ref": 16,
+    "n_est": 21,
+    "unmapped_est": {},
+    "unmapped_ref": {
+      "63": 42,
+      "62": 41,
+      "64": 55,
+      "81": 9,
+      "80": 3
+    },
+    "f1_8": 0.0,
+    "per_class8": {
+      "snare": {
+        "f1": 0.0,
+        "n_ref": 0,
+        "n_est": 21
+      },
+      "hihat_closed": {
+        "f1": 0.0,
+        "n_ref": 16,
+        "n_est": 0
+      },
+      "other": {
+        "f1": 0.0,
+        "n_ref": 139,
+        "n_est": 0
+      }
+    },
+    "midi": "eval/heldout/runs/larsnet_adtof/drums/slakh_train/Track00067/drums.mid",
+    "seconds": 0.1
+  }
+}
